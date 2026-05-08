@@ -17,13 +17,18 @@ class AIClient(Protocol):
 
 
 class OpenAIClient:
-    """基于 OpenAI API 的客户端实现"""
+    """基于 OpenAI API 的客户端实现
+
+    注意：推理模型（如 deepseek-reasoner、o1）会将大量 token 用于内部推理，
+    不适合信号码场景（需要极短输出）。请使用 chat 模型（如 deepseek-chat、gpt-4o-mini）。
+    """
 
     def __init__(
         self,
         model: str = "gpt-4o-mini",
         api_key: str | None = None,
         base_url: str | None = None,
+        max_tokens: int = 32,
     ):
         try:
             import openai
@@ -31,6 +36,7 @@ class OpenAIClient:
             raise ImportError("请安装 openai: pip install openai")
 
         self.model = model
+        self.max_tokens = max_tokens
         self.client = openai.OpenAI(api_key=api_key, base_url=base_url)
 
     def call(self, prompt: str) -> str:
@@ -38,9 +44,10 @@ class OpenAIClient:
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0,
-            max_tokens=32,
+            max_tokens=self.max_tokens,
         )
-        return response.choices[0].message.content.strip()
+        content = response.choices[0].message.content
+        return content.strip() if content else ""
 
 
 class MockAIClient:

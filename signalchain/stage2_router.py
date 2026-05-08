@@ -23,34 +23,56 @@ logger = logging.getLogger(__name__)
 
 FIELD_SEMANTIC_TEMPLATE_S0 = """场景：{scene_name}
 
-字段样本（每字段最多 5 个值）：
-
 {field_blocks}
 
-要求：
-1. 为每个字段选择 1 个代码
-2. 按字段顺序输出，不要有空格（如 IX）
-3. 不要输出任何解释
+规则：优先根据字段名判断语义，样本值仅作辅助确认。每个字段选1个代码，按字段顺序拼接输出。只输出代码序列，无空格无解释。
 
 输出："""
 
 FIELD_SEMANTIC_TEMPLATE_S1 = """场景：{scene_name}
 
-字段样本（每字段最多 5 个值）：
-
 {field_blocks}
 
-要求：
-1. 为每个字段选择 1 个代码
-2. 按字段顺序输出，不要有空格（如 IGADN）
-3. 不要输出任何解释
+规则：优先根据字段名判断语义，样本值仅作辅助确认。每个字段选1个代码，按字段顺序拼接输出。只输出代码序列，无空格无解释。
+参考：I=编号(ID/编号类), G=性别(M/F/男/女), A=年龄(数字/岁), D=科室, N=药品名, C=诊断码(I10类), T=时间日期, X=其他
 
 输出："""
 
-FIELD_SEMANTIC_TEMPLATE_S2 = FIELD_SEMANTIC_TEMPLATE_S1.replace("IGADN", "MTIX")
-FIELD_SEMANTIC_TEMPLATE_S3 = FIELD_SEMANTIC_TEMPLATE_S1.replace("IGADN", "GAEIX")
-FIELD_SEMANTIC_TEMPLATE_S4 = FIELD_SEMANTIC_TEMPLATE_S1.replace("IGADN", "TLIX")
-FIELD_SEMANTIC_TEMPLATE_S5 = FIELD_SEMANTIC_TEMPLATE_S1.replace("IGADN", "RIX")
+FIELD_SEMANTIC_TEMPLATE_S2 = """场景：{scene_name}
+
+{field_blocks}
+
+规则：优先根据字段名判断语义，样本值仅作辅助确认。每个字段选1个代码，按字段顺序拼接输出。只输出代码序列，无空格无解释。
+参考：I=编号(ID/编号类), M=金额(货币符号/数值金额), T=时间日期(年月日), X=其他
+
+输出："""
+
+FIELD_SEMANTIC_TEMPLATE_S3 = """场景：{scene_name}
+
+{field_blocks}
+
+规则：优先根据字段名判断语义，样本值仅作辅助确认。每个字段选1个代码，按字段顺序拼接输出。只输出代码序列，无空格无解释。
+参考：I=编号(ID/编号类), G=性别(M/F/男/女), A=年龄(数字/岁), E=邮箱(@符号), P=手机号(11位数字), X=其他
+
+输出："""
+
+FIELD_SEMANTIC_TEMPLATE_S4 = """场景：{scene_name}
+
+{field_blocks}
+
+规则：优先根据字段名判断语义，样本值仅作辅助确认。每个字段选1个代码，按字段顺序拼接输出。只输出代码序列，无空格无解释。
+参考：I=编号(ID/编号类), T=时间日期(年月日时分秒), L=日志级别(DEBUG/INFO/ERROR), X=其他
+
+输出："""
+
+FIELD_SEMANTIC_TEMPLATE_S5 = """场景：{scene_name}
+
+{field_blocks}
+
+规则：优先根据字段名判断语义，样本值仅作辅助确认。每个字段选1个代码，按字段顺序拼接输出。只输出代码序列，无空格无解释。
+参考：I=编号(ID/编号类), R=经纬度(小数坐标值), X=其他
+
+输出："""
 
 
 # ============================================================
@@ -162,16 +184,26 @@ def build_field_semantic_prompt(
 ) -> str:
     """组装字段语义识别的完整 Prompt"""
     code_options = _format_code_options(scene_config.valid_codes)
+    # 选项精简为一行
+    options_line = " ".join(f"{code}={label}" for code, label in code_options)
 
-    field_blocks = []
+    # 构建逐字段对照表，让AI明确每个位置对应哪个字段
+    field_lines = []
     for i, field in enumerate(profile.fields, 1):
-        compressed = compress_samples(field.samples, max_count=5)
-        options_str = " ".join(f"{code}={label}" for code, label in code_options)
-        field_blocks.append(
-            f"字段{i}: {field.name}\n" f"样本: {compressed}\n" f"选项: {options_str}"
+        compressed = compress_samples(field.samples, max_count=3)
+        samples_str = ",".join(compressed[:3])  # 限制3个样本
+        field_lines.append(
+            f"  {i}. {field.name}({field.type}): {samples_str}"
         )
+
+    # 组合：选项 + 字段列表 + 明确的输出位置标记
+    combined = (
+        f"选项: {options_line}\n\n"
+        f"字段:\n" + "\n".join(field_lines) + "\n\n"
+        f"为每个字段选择1个代码，按编号1-{len(profile.fields)}顺序拼接输出:"
+    )
 
     return scene_config.prompt_template.format(
         scene_name=scene_config.scene_name,
-        field_blocks="\n\n".join(field_blocks),
+        field_blocks=combined,
     )

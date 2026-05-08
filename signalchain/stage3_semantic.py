@@ -26,33 +26,40 @@ def validate_field_signal_sequence(
     校验 AI 输出的字段信号序列。
 
     校验规则：
-    1. 去除空白后长度必须 == field_count
+    1. 去除空白后，截取前 field_count 个字符
     2. 每个字符必须 ∈ 当前场景的 valid_codes（不是全局白名单）
+    3. 不合法字符替换为 X（而非整体回退）
 
     关键设计：校验使用 scene_config.valid_codes（场景白名单），
     而非全局 VALID_FIELD_CODES。原因：如果 AI 在财务场景（S2）
     下输出了 G（性别），虽然 G 是合法的字段信号码，
     但在财务场景下没有意义，应该被拒绝。
     """
-    cleaned = raw_output.strip().replace(" ", "")
+    cleaned = raw_output.strip().replace(" ", "").replace("\n", "")
 
-    # 规则 1：长度校验
-    if len(cleaned) != field_count:
-        logger.warning(
-            f"Signal sequence length mismatch: "
-            f"expected {field_count}, got {len(cleaned)} ({raw_output!r}), "
-            f"fallback to 'X' * {field_count}"
-        )
+    # 规则 1：长度校验 — 过长截取，过短补 X
+    if len(cleaned) == 0:
+        logger.warning(f"Empty signal sequence, fallback to 'X' * {field_count}")
         return "X" * field_count
 
-    # 规则 2：白名单校验（使用场景级别的 valid_codes）
-    for ch in cleaned:
-        if ch not in valid_codes:
-            logger.warning(
-                f"Invalid signal code '{ch}' in sequence {cleaned!r}, "
-                f"not in valid_codes {valid_codes}, "
-                f"fallback to 'X' * {field_count}"
-            )
-            return "X" * field_count
+    if len(cleaned) > field_count:
+        logger.info(
+            f"Signal sequence longer than expected: "
+            f"expected {field_count}, got {len(cleaned)} ({raw_output!r}), truncating"
+        )
+        cleaned = cleaned[:field_count]
 
-    return cleaned
+    # 规则 2：白名单校验 — 逐字符替换非法码为 X
+    result_chars = []
+    for ch in cleaned:
+        if ch in valid_codes:
+            result_chars.append(ch)
+        else:
+            logger.warning(f"Invalid signal code '{ch}' in sequence, replacing with 'X'")
+            result_chars.append("X")
+
+    # 补齐长度
+    while len(result_chars) < field_count:
+        result_chars.append("X")
+
+    return "".join(result_chars)

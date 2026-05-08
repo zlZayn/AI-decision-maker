@@ -8,15 +8,33 @@ from signalchain.ai_client import MockAIClient
 from signalchain.stage5_execute import QualityReport
 
 
+class SequenceMockAI(MockAIClient):
+    """按调用顺序返回预设响应的MockAI
+
+    第一次 call → 场景识别（返回 scene_code）
+    第二次 call → 字段语义识别（返回 signal_sequence）
+    """
+
+    def __init__(self, scene_code: str, signal_sequence: str):
+        super().__init__()
+        self.scene_code = scene_code
+        self.signal_sequence = signal_sequence
+        self._call_count = 0
+
+    def call(self, prompt: str) -> str:
+        self._call_count += 1
+        if self._call_count == 1:
+            return self.scene_code
+        else:
+            return self.signal_sequence
+
+
 class TestSignalChainPipeline:
     """测试 SignalChainPipeline 完整流程"""
 
     def test_medical_data_full_pipeline(self):
         """医疗数据完整管线测试"""
-        mock_ai = MockAIClient(responses={
-            "字段名": "S1",
-            "patient_id": "IGADN",
-        })
+        mock_ai = SequenceMockAI(scene_code="S1", signal_sequence="IGADN")
 
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
             pipeline = SignalChainPipeline(ai_client=mock_ai, cache_file=f.name)
@@ -42,16 +60,13 @@ class TestSignalChainPipeline:
         """第二次运行应命中缓存"""
         call_count = 0
 
-        class CountingMockAI(MockAIClient):
+        class CountingMockAI(SequenceMockAI):
             def call(self, prompt):
                 nonlocal call_count
                 call_count += 1
                 return super().call(prompt)
 
-        mock_ai = CountingMockAI(responses={
-            "字段名": "S1",
-            "patient_id": "IGADN",
-        })
+        mock_ai = CountingMockAI(scene_code="S1", signal_sequence="IGADN")
 
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
             pipeline = SignalChainPipeline(ai_client=mock_ai, cache_file=f.name)
@@ -92,10 +107,7 @@ class TestSignalChainPipeline:
 
     def test_invalid_scene_fallback(self):
         """无效场景码回退到 S0"""
-        mock_ai = MockAIClient(responses={
-            "字段名": "INVALID",  # 将被校验为 S0
-            "col1": "IX",        # S0 只有 I 和 X
-        })
+        mock_ai = SequenceMockAI(scene_code="INVALID", signal_sequence="IX")
 
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
             pipeline = SignalChainPipeline(ai_client=mock_ai, cache_file=f.name)
