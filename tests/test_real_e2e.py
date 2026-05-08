@@ -1,19 +1,18 @@
 """
-SignalChain 真实端到端测试 — 接入 DeepSeek API
+SignalChain API 端到端测试 (DeepSeek · 消耗Token)
 
-运行方式：
-    python tests/test_real_e2e.py
+运行：python tests/test_real_e2e.py
 """
 
 import os
 import sys
 import time
 
-# Windows 终端 UTF-8 输出
 if sys.platform == "win32":
     os.system("chcp 65001 >nul 2>&1")
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
 
 import pandas as pd
 from signalchain.pipeline import SignalChainPipeline
@@ -27,16 +26,15 @@ MODEL = "deepseek-chat"
 
 
 def create_pipeline() -> SignalChainPipeline:
-    """创建使用真实 AI 的管线"""
     client = OpenAIClient(model=MODEL, api_key=API_KEY, base_url=API_URL)
     return SignalChainPipeline(ai_client=client, cache_file=":memory:")
 
 
-def test_medical():
-    """测试1: 医疗数据 — 预期场景 S1"""
-    print("\n" + "=" * 60)
-    print("测试1: 医疗数据")
-    print("=" * 60)
+# ---- 测试用例 ----
+
+def case_medical(index: int, total: int):
+    """医疗数据 — 预期场景 S1"""
+    print(f"\n--- {index}/{total} 医疗数据 ---")
 
     df = pd.DataFrame({
         "patient_id": ["P001", "P002", "P003", "P004"],
@@ -46,42 +44,27 @@ def test_medical():
         "drug_name": ["阿莫西林0.25g", "甲硝唑", "未知药品", "头孢"],
     })
 
-    print("\n原始数据：")
-    print(df.to_string())
-
+    print(f"  原始数据: {list(df.columns)}")
     pipeline = create_pipeline()
     t0 = time.time()
     result, report = pipeline.run(df)
     elapsed = time.time() - t0
 
-    print("\n清洗后数据：")
-    print(result.to_string())
+    print(f"  清洗后  : {list(result.columns)}")
+    print(f"  耗时    : {elapsed:.2f}s")
     print(report.summary())
-    print(f"\n耗时: {elapsed:.2f}s")
 
-    # 验证：至少部分字段被正确处理
-    # gender 列：如果 AI 正确识别为 G，则应该被标准化
     gender_values = list(result["gender"])
-    if gender_values == ["男", "女", "男", "男"]:
-        print("[OK] 性别标准化完美")
-    else:
-        print(f"[INFO] 性别标准化结果: {gender_values} (AI可能未识别为G信号码)")
-
-    # age 列：如果 AI 正确识别为 A，则应该被提取为数字
     age_values = list(result["age"])
-    if all(isinstance(v, (int, float)) for v in age_values):
-        print("[OK] 年龄提取成功")
-    else:
-        print(f"[INFO] 年龄提取结果: {age_values}")
-
-    print("\n[PASS] 医疗数据测试完成")
+    ok = gender_values == ["男", "女", "男", "男"]
+    ok = ok and all(isinstance(v, (int, float)) for v in age_values)
+    print(f"  {'[OK]' if ok else '[INFO]'} 性别={gender_values} 年龄={age_values}")
+    print(f"  {'PASS' if ok else 'PASS (部分AI偏差可接受)'}")
 
 
-def test_user():
-    """测试2: 用户数据 — 预期场景 S3"""
-    print("\n" + "=" * 60)
-    print("测试2: 用户数据")
-    print("=" * 60)
+def case_user(index: int, total: int):
+    """用户数据 — 预期场景 S3"""
+    print(f"\n--- {index}/{total} 用户数据 ---")
 
     df = pd.DataFrame({
         "user_id": ["U001", "U002", "U003"],
@@ -91,26 +74,21 @@ def test_user():
         "phone": ["13800138000", "12345", "13912345678"],
     })
 
-    print("\n原始数据：")
-    print(df.to_string())
-
+    print(f"  原始数据: {list(df.columns)}")
     pipeline = create_pipeline()
     t0 = time.time()
     result, report = pipeline.run(df)
     elapsed = time.time() - t0
 
-    print("\n清洗后数据：")
-    print(result.to_string())
+    print(f"  清洗后  : {list(result.columns)}")
+    print(f"  耗时    : {elapsed:.2f}s")
     print(report.summary())
-    print(f"\n耗时: {elapsed:.2f}s")
-    print("\n[PASS] 用户数据测试完成")
+    print("  PASS")
 
 
-def test_finance():
-    """测试3: 财务数据 — 预期场景 S2"""
-    print("\n" + "=" * 60)
-    print("测试3: 财务数据")
-    print("=" * 60)
+def case_finance(index: int, total: int):
+    """财务数据 — 预期场景 S2"""
+    print(f"\n--- {index}/{total} 财务数据 ---")
 
     df = pd.DataFrame({
         "transaction_id": ["T001", "T002", "T003"],
@@ -118,34 +96,25 @@ def test_finance():
         "date": ["2024-01-15", "2024/02/20", "2024年3月1日"],
     })
 
-    print("\n原始数据：")
-    print(df.to_string())
-
+    print(f"  原始数据: {list(df.columns)}")
     pipeline = create_pipeline()
     t0 = time.time()
     result, report = pipeline.run(df)
     elapsed = time.time() - t0
 
-    print("\n清洗后数据：")
-    print(result.to_string())
+    print(f"  清洗后  : {list(result.columns)}")
+    print(f"  耗时    : {elapsed:.2f}s")
     print(report.summary())
-    print(f"\n耗时: {elapsed:.2f}s")
 
-    # 如果 amount 被识别为 M，应该被标准化为数字
     amount_values = list(result["amount"])
-    if all(isinstance(v, (int, float)) for v in amount_values):
-        print("[OK] 金额标准化成功")
-    else:
-        print(f"[INFO] 金额标准化结果: {amount_values}")
-
-    print("\n[PASS] 财务数据测试完成")
+    ok = all(isinstance(v, (int, float)) for v in amount_values)
+    print(f"  {'[OK]' if ok else '[INFO]'} 金额={amount_values}")
+    print("  PASS")
 
 
-def test_cache_hit():
-    """测试4: 缓存命中 — 第二次运行应零Token且更快"""
-    print("\n" + "=" * 60)
-    print("测试4: 缓存命中验证")
-    print("=" * 60)
+def case_cache_hit(index: int, total: int):
+    """缓存命中 — 第二次运行应零Token且更快"""
+    print(f"\n--- {index}/{total} 缓存命中 ---")
 
     df = pd.DataFrame({
         "patient_id": ["P001", "P002"],
@@ -157,45 +126,56 @@ def test_cache_hit():
 
     pipeline = create_pipeline()
 
-    # 第一次运行
     t0 = time.time()
     result1, _ = pipeline.run(df)
     first_time = time.time() - t0
 
-    # 第二次运行（应命中缓存）
     t0 = time.time()
     result2, _ = pipeline.run(df)
     second_time = time.time() - t0
 
-    print(f"首次运行耗时: {first_time:.2f}s (含AI调用)")
-    print(f"缓存命中耗时: {second_time:.2f}s (零Token)")
+    print(f"  首次运行: {first_time:.2f}s (含AI调用)")
+    print(f"  缓存命中: {second_time:.2f}s (零Token)")
 
-    # 缓存命中应远快于首次
-    if second_time < first_time * 0.5:
-        print("[OK] 缓存命中显著加速")
-    else:
-        print(f"[WARN] 缓存命中加速不明显: first={first_time:.2f}s, second={second_time:.2f}s")
+    ok = second_time < first_time * 0.5
+    print(f"  {'[OK]' if ok else '[WARN]'} 缓存加速{'显著' if ok else '不明显'}")
 
-    # 两次结果应一致
     assert result1.equals(result2), "缓存命中的结果应与首次一致"
-    print("\n[PASS] 缓存命中测试完成")
+    print("  PASS")
+
+
+# ---- 入口 ----
+
+TAG = "API"
+BAR = "=" * 56
+TESTS = [case_medical, case_user, case_finance, case_cache_hit]
+
+
+def header():
+    print(f"\n{BAR}")
+    print(f"  SignalChain · API 端到端测试 · DeepSeek · {MODEL}")
+    print(f"{BAR}")
+
+
+def footer(elapsed: float, passed: int, total: int):
+    ok = passed == total
+    label = "PASS" if ok else "FAIL"
+    print(f"\n{BAR}")
+    print(f"  {label} · {TAG} · {passed}/{total} · 耗时: {elapsed:.1f}s")
+    print(f"{BAR}")
 
 
 if __name__ == "__main__":
-    print("SignalChain 真实端到端测试")
-    print(f"模型: {MODEL}")
-    print(f"API: {API_URL}")
-    print()
-
-    try:
-        test_medical()
-        test_user()
-        test_finance()
-        test_cache_hit()
-        print("\n" + "=" * 60)
-        print("ALL TESTS PASSED!")
-        print("=" * 60)
-    except Exception as e:
-        print(f"\n[FAIL] 测试失败: {e}")
-        import traceback
-        traceback.print_exc()
+    header()
+    passed = 0
+    t0 = time.time()
+    for i, test_fn in enumerate(TESTS, 1):
+        try:
+            test_fn(i, len(TESTS))
+            passed += 1
+        except Exception as e:
+            print(f"  FAIL: {e}")
+            import traceback
+            traceback.print_exc()
+    elapsed = time.time() - t0
+    footer(elapsed, passed, len(TESTS))

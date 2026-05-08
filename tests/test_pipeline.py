@@ -53,8 +53,8 @@ class TestSignalChainPipeline:
             assert list(result["gender"]) == ["男", "女"]
             # 年龄应被提取
             assert list(result["age"]) == [30, 30]
-            # 科室应被标准化
-            assert result["dept_name"].iloc[0] == "心内科"
+            # 科室应被标准化（字段名已被标准化为 department）
+            assert result["department"].iloc[0] == "心内科"
 
     def test_cache_hit_second_run(self):
         """第二次运行应命中缓存"""
@@ -120,8 +120,8 @@ class TestSignalChainPipeline:
             result, report = pipeline.run(df)
 
             # S0 场景下所有字段 pass_through
-            assert list(result["col1"]) == ["a", "b"]
-            assert list(result["col2"]) == ["c", "d"]
+            assert list(result["id"]) == ["a", "b"]
+            assert list(result["other"]) == ["c", "d"]
 
     def test_empty_dataframe(self):
         """空 DataFrame 处理"""

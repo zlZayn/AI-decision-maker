@@ -5,9 +5,9 @@ AI 只输出信号码（如 G），操作执行时从知识库获取具体映射
 
 SEMANTIC_KNOWLEDGE: dict[str, dict] = {
     "gender": {
-        "male_values": ["男", "M", "Male", "男生", "男士", "1", "帅哥", "male", "m"],
-        "female_values": ["女", "F", "Female", "女生", "女士", "0", "female", "f"],
-        "unknown_values": ["??", "未知", "不详", "保密", "unknown", "NA", "N/A"],
+        "male_values": ["男", "M", "Male", "男生", "男士", "1", "帅哥", "male", "m", "man", "Man", "MALE"],
+        "female_values": ["女", "F", "Female", "女生", "女士", "0", "female", "f", "woman", "Woman", "FEMALE"],
+        "unknown_values": ["??", "未知", "不详", "保密", "unknown", "NA", "N/A", "2"],
     },
     "department": {
         "mappings": {

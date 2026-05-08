@@ -10,7 +10,7 @@ from signalchain.operations.department import DepartmentNormalizer
 from signalchain.operations.drug_name import DrugNameNormalizer
 from signalchain.operations.icd10 import ICD10Validator
 from signalchain.operations.datetime_parser import DateTimeParser
-from signalchain.operations.currency import CurrencyNormalizer
+from signalchain.operations.currency import CurrencySplitter
 from signalchain.operations.email import EmailValidator
 from signalchain.operations.phone import PhoneValidator
 from signalchain.operations.log_level import LogLevelNormalizer
@@ -166,26 +166,37 @@ class TestDateTimeParser:
         assert result.iloc[0] == "not a date"
 
 
-class TestCurrencyNormalizer:
+class TestCurrencySplitter:
     def setup_method(self):
-        self.op = CurrencyNormalizer()
+        self.op = CurrencySplitter()
+
+    def test_name(self):
+        assert self.op.name == "split_currency"
+        assert self.op.splits_column
 
     def test_cny(self):
         result = self.op.execute(pd.Series(["¥100.50", "￥200"]))
-        assert result.iloc[0] == 100.5
-        assert result.iloc[1] == 200.0
+        assert list(result["amount_value"]) == [100.5, 200.0]
+        assert list(result["amount_currency"]) == ["CNY", "CNY"]
 
     def test_usd(self):
         result = self.op.execute(pd.Series(["$50", "USD 100"]))
-        assert result.iloc[0] == 50.0
+        assert list(result["amount_value"]) == [50.0, 100.0]
+        assert list(result["amount_currency"]) == ["USD", "USD"]
+
+    def test_eur(self):
+        result = self.op.execute(pd.Series(["€2,500.00"]))
+        assert result["amount_value"].iloc[0] == 2500.0
+        assert result["amount_currency"].iloc[0] == "EUR"
 
     def test_plain_number(self):
         result = self.op.execute(pd.Series(["100"]))
-        assert result.iloc[0] == 100.0
+        assert result["amount_value"].iloc[0] == 100.0
+        assert result["amount_currency"].iloc[0] is None
 
     def test_with_comma(self):
         result = self.op.execute(pd.Series(["1,000.50"]))
-        assert result.iloc[0] == 1000.5
+        assert result["amount_value"].iloc[0] == 1000.5
 
 
 class TestEmailValidator:

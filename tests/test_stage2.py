@@ -73,11 +73,10 @@ class TestBuildFieldSemanticPrompt:
             FieldProfile(name="age", type="string", samples=["30"], null_ratio=0.0),
         ])
         scene_config = ROUTING_TABLE["S1"]
-        prompt = build_field_semantic_prompt(profile, scene_config)
+        prompt = build_field_semantic_prompt(profile, scene_config, scene_code="S1")
 
         assert "gender" in prompt
         assert "age" in prompt
-        assert "S1" not in prompt  # 模板中不应出现场景码
         assert "医疗数据" in prompt
 
     def test_prompt_contains_code_options(self):
@@ -85,7 +84,7 @@ class TestBuildFieldSemanticPrompt:
             FieldProfile(name="x", type="string", samples=["a"], null_ratio=0.0),
         ])
         scene_config = ROUTING_TABLE["S1"]
-        prompt = build_field_semantic_prompt(profile, scene_config)
+        prompt = build_field_semantic_prompt(profile, scene_config, scene_code="S1")
 
         # 应该包含 S1 场景的有效码
         assert "G=" in prompt
