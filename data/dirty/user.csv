@@ -1,0 +1,15 @@
+UID,SEX,AGE,E-MAIL,PHONE_number
+U001,男,25,test@example.com,138-0013-8000
+U002,F,30,invalid.email@,12345
+U003,Male,28,user+tag@mail.cn,139-1234-5678
+U004,女,22。,alice@gmail,15912345678
+U005,男=,35,no@atsign,18600001111~
+U006,F,40,admin@ company.com.cn,010-8888-6666
+U007,女,18,hello@.com," 177-8888-9999 "
+U008,Male,60,bob@test.org,13500000000
+U009,男,28,test@.co.uk,4008001234
+U010,F,17,,14700001111
+U011,女,33,user@qq.com,021-8888-6666
+U012,Male,50,mail@test~com,13900001111
+U013,男,12,"""",198-0000-0000
+U014,女,25, valid@test.com ,10086
