@@ -30,12 +30,13 @@ def header():
 def footer(ok: bool, elapsed: float, extra: str = ""):
     label = "PASS" if ok else "FAIL"
     print(f"\n{BAR}")
-    print(f"  {label} · {TAG} {extra}耗时: {elapsed:.1f}s")
+    print(f"  {label} · {TAG} {extra}耗时: {elapsed:.2f}s")
     print(f"{BAR}")
 
 
 if __name__ == "__main__":
     import pytest
+
     header()
     t0 = time.time()
     code = pytest.main(["tests/", "-v", "--tb=short"])

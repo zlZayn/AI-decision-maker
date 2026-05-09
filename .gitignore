@@ -5,3 +5,4 @@ __pycache__/
 .pytest_cache/
 signal_cache.json
 *.egg
+data/clean/

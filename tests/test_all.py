@@ -35,7 +35,7 @@ def footer(elapsed: float, failed_label: str | None):
     label = "FAIL" if failed_label else "PASS"
     extra = f" · 失败: {failed_label}" if failed_label else ""
     print(f"\n{BAR}")
-    print(f"  {label} · {TAG}{extra} · 总耗时: {elapsed:.1f}s")
+    print(f"  {label} · {TAG}{extra} · 总耗时: {elapsed:.2f}s")
     print(f"{BAR}")
 
 

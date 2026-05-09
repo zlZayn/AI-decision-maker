@@ -3,8 +3,6 @@
 from signalchain.stage4_assemble import assemble_operations
 from signalchain.models import SceneConfig
 from signalchain.operations.pass_through import PassThrough
-from signalchain.operations.gender import GenderNormalizer
-from signalchain.operations.registry import OPERATION_REGISTRY
 
 
 class TestAssembleOperations:

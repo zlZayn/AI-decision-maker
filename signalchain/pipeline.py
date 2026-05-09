@@ -42,6 +42,7 @@ class SignalChainPipeline:
         self.ai = ai_client or MockAIClient()
         self.cache = SignalCache(cache_file)
         self.routing = ROUTING_TABLE
+        self.prompt_log: list[str] = []  # 捕获发送给 AI 的 prompt
 
     def run(self, df: pd.DataFrame) -> tuple[pd.DataFrame, QualityReport]:
         # ---- Stage 0: 元信息提取 ----
@@ -58,7 +59,9 @@ class SignalChainPipeline:
         logger.info("Cache miss, proceeding to AI stages")
 
         # ---- Stage 1: 场景识别 ----
-        raw_scene = self.ai.call(build_scene_prompt(profile))
+        scene_prompt = build_scene_prompt(profile)
+        self.prompt_log.append(scene_prompt)
+        raw_scene = self.ai.call(scene_prompt)
         scene_code = validate_scene_code(raw_scene)
         logger.info(f"Stage 1: scene_code={scene_code} (raw={raw_scene!r})")
 
@@ -68,6 +71,7 @@ class SignalChainPipeline:
         logger.info(f"Stage 2: prompt assembled for '{scene_config.scene_name}'")
 
         # ---- Stage 3: 字段语义识别 ----
+        self.prompt_log.append(field_prompt)
         raw_signals = self.ai.call(field_prompt)
         signal_sequence = validate_field_signal_sequence(
             raw_signals, profile.field_count, scene_config.valid_codes

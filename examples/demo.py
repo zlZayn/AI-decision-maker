@@ -11,12 +11,12 @@ def demo_medical_data():
     print("SignalChain 医疗数据清洗示例")
     print("=" * 60)
 
-    # 构建模拟 AI 客户端（实际使用时替换为 OpenAIClient）
+    # 构建模拟 AI 客户端（实际使用时替换为 DeepSeekV4Client）
     mock_ai = MockAIClient(responses={
-        # 场景识别 Prompt 中包含 "patient" 等关键词 → 返回 S1
-        "字段名": "S1",
-        # 字段语义识别 Prompt 中包含 "gender" → 返回 IGADN
-        "patient_id": "IGADN",
+        # 场景识别 Prompt 包含 "场景代码" → 返回 S1
+        "场景代码": "S1",
+        # 字段语义识别 Prompt 包含 "规则" → 返回 IGADN
+        "规则": "IGADN",
     })
 
     # 创建管线
@@ -78,8 +78,8 @@ def demo_user_data():
     print("=" * 60)
 
     mock_ai = MockAIClient(responses={
-        "字段名": "S3",
-        "user_id": "IGAEI",
+        "场景代码": "S3",
+        "规则": "IGAEP",
     })
 
     pipeline = SignalChainPipeline(ai_client=mock_ai, cache_file=":memory:")

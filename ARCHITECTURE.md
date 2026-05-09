@@ -662,6 +662,8 @@ print(report.summary())
 - 每次调用约 30 + N*4 Token
 - 缓存命中时 = 0 Token
 
+**思考模式**：DeepSeek V4 默认开启思考模式，会消耗额外的 reasoning_tokens。字段识别是简单判断任务，关闭思考模式后输出质量不变，费用降低约 50%，响应速度提升约 4 倍。项目中 `DeepSeekV4Client` 默认 `thinking=False`。
+
 ### 执行速度
 
 | 操作 | 耗时 |

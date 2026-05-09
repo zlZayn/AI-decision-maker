@@ -16,33 +16,31 @@ if sys.platform == "win32":
 
 import pandas as pd
 from signalchain.pipeline import SignalChainPipeline
-from signalchain.ai_client import OpenAIClient
-
-
-# ============ 配置 ============
-API_KEY = "sk-abff4438c575405b9a42f813ec21b992"
-API_URL = "https://api.deepseek.com/v1"
-MODEL = "deepseek-chat"
+from signalchain.ai_client import DeepSeekV4Client
+from config import API_KEY, API_URL, MODEL
 
 
 def create_pipeline() -> SignalChainPipeline:
-    client = OpenAIClient(model=MODEL, api_key=API_KEY, base_url=API_URL)
+    client = DeepSeekV4Client(model=MODEL, api_key=API_KEY, base_url=API_URL, thinking=False)
     return SignalChainPipeline(ai_client=client, cache_file=":memory:")
 
 
 # ---- 测试用例 ----
 
+
 def case_medical(index: int, total: int):
     """医疗数据 — 预期场景 S1"""
     print(f"\n--- {index}/{total} 医疗数据 ---")
 
-    df = pd.DataFrame({
-        "patient_id": ["P001", "P002", "P003", "P004"],
-        "gender": ["M", "F", "Male", "帅哥"],
-        "age": ["30", "30岁", "约30", "25Y"],
-        "dept_name": ["心内", "外科", "妇科", "ICU"],
-        "drug_name": ["阿莫西林0.25g", "甲硝唑", "未知药品", "头孢"],
-    })
+    df = pd.DataFrame(
+        {
+            "patient_id": ["P001", "P002", "P003", "P004"],
+            "gender": ["M", "F", "Male", "帅哥"],
+            "age": ["30", "30岁", "约30", "25Y"],
+            "dept_name": ["心内", "外科", "妇科", "ICU"],
+            "drug_name": ["阿莫西林0.25g", "甲硝唑", "未知药品", "头孢"],
+        }
+    )
 
     print(f"  原始数据: {list(df.columns)}")
     pipeline = create_pipeline()
@@ -66,13 +64,15 @@ def case_user(index: int, total: int):
     """用户数据 — 预期场景 S3"""
     print(f"\n--- {index}/{total} 用户数据 ---")
 
-    df = pd.DataFrame({
-        "user_id": ["U001", "U002", "U003"],
-        "gender": ["男", "F", "1"],
-        "age": ["25", "30岁", "约28"],
-        "email": ["test@example.com", "invalid-email", "user@mail.cn"],
-        "phone": ["13800138000", "12345", "13912345678"],
-    })
+    df = pd.DataFrame(
+        {
+            "user_id": ["U001", "U002", "U003"],
+            "gender": ["男", "F", "1"],
+            "age": ["25", "30岁", "约28"],
+            "email": ["test@example.com", "invalid-email", "user@mail.cn"],
+            "phone": ["13800138000", "12345", "13912345678"],
+        }
+    )
 
     print(f"  原始数据: {list(df.columns)}")
     pipeline = create_pipeline()
@@ -90,11 +90,13 @@ def case_finance(index: int, total: int):
     """财务数据 — 预期场景 S2"""
     print(f"\n--- {index}/{total} 财务数据 ---")
 
-    df = pd.DataFrame({
-        "transaction_id": ["T001", "T002", "T003"],
-        "amount": ["¥1,000.50", "$200", "500"],
-        "date": ["2024-01-15", "2024/02/20", "2024年3月1日"],
-    })
+    df = pd.DataFrame(
+        {
+            "transaction_id": ["T001", "T002", "T003"],
+            "amount": ["¥1,000.50", "$200", "500"],
+            "date": ["2024-01-15", "2024/02/20", "2024年3月1日"],
+        }
+    )
 
     print(f"  原始数据: {list(df.columns)}")
     pipeline = create_pipeline()
@@ -116,13 +118,15 @@ def case_cache_hit(index: int, total: int):
     """缓存命中 — 第二次运行应零Token且更快"""
     print(f"\n--- {index}/{total} 缓存命中 ---")
 
-    df = pd.DataFrame({
-        "patient_id": ["P001", "P002"],
-        "gender": ["M", "F"],
-        "age": ["30", "25"],
-        "dept_name": ["心内", "外科"],
-        "drug_name": ["阿莫西林", "甲硝唑"],
-    })
+    df = pd.DataFrame(
+        {
+            "patient_id": ["P001", "P002"],
+            "gender": ["M", "F"],
+            "age": ["30", "25"],
+            "dept_name": ["心内", "外科"],
+            "drug_name": ["阿莫西林", "甲硝唑"],
+        }
+    )
 
     pipeline = create_pipeline()
 
@@ -161,7 +165,7 @@ def footer(elapsed: float, passed: int, total: int):
     ok = passed == total
     label = "PASS" if ok else "FAIL"
     print(f"\n{BAR}")
-    print(f"  {label} · {TAG} · {passed}/{total} · 耗时: {elapsed:.1f}s")
+    print(f"  {label} · {TAG} · {passed}/{total} · 耗时: {elapsed:.2f}s")
     print(f"{BAR}")
 
 
@@ -176,6 +180,7 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"  FAIL: {e}")
             import traceback
+
             traceback.print_exc()
     elapsed = time.time() - t0
     footer(elapsed, passed, len(TESTS))

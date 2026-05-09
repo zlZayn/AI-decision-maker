@@ -99,6 +99,7 @@ def execute_pipeline(
                 if isinstance(output, pd.DataFrame):
                     for new_col in output.columns:
                         result[new_col] = output[new_col]
+                    result.drop(columns=[col_name], inplace=True)
                     skip_cols.add(col_name)
                     for c in output.columns:
                         if c != col_name:

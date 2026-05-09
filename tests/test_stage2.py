@@ -6,7 +6,7 @@ from signalchain.stage2_router import (
     build_field_semantic_prompt,
     _format_code_options,
 )
-from signalchain.models import DataProfile, FieldProfile, SceneConfig
+from signalchain.models import DataProfile, FieldProfile
 
 
 class TestRoutingTable:

@@ -29,9 +29,9 @@ pip install pandas openai
 编辑 `run_clean.py`，修改以下配置：
 
 ```python
-API_KEY = "your-api-key"           # DeepSeek/OpenAI API Key
-API_URL = "https://api.deepseek.com/v1"
-MODEL = "deepseek-chat"
+API_KEY = "your-api-key"           # DeepSeek API Key
+API_URL = "https://api.deepseek.com"
+MODEL = "deepseek-v4-flash"
 ```
 
 ### 3. 准备数据
@@ -135,7 +135,7 @@ AI-decision-maker/
 |   |   |-- department.py        # [脚本] 科室标准化
 |   |   |-- drug_name.py         # [脚本] 药品名标准化
 |   |   |-- icd10.py             # [脚本] ICD10诊断码校验
-|   |   |-- datetime_parser.py    # [脚本] 日期时间解析
+|   |   |-- datetime.py             # [脚本] 日期时间解析
 |   |   |-- currency.py          # [脚本] 金额拆分（分列操作）
 |   |   |-- email.py             # [脚本] 邮箱验证
 |   |   |-- phone.py             # [脚本] 手机号验证
@@ -163,14 +163,15 @@ AI-decision-maker/
 ```python
 import pandas as pd
 from signalchain.pipeline import SignalChainPipeline
-from signalchain.ai_client import OpenAIClient
+from signalchain.ai_client import DeepSeekV4Client
 
-# 初始化Pipeline
+# 初始化Pipeline（默认关闭思考模式，字段识别不需要深度推理）
 pipeline = SignalChainPipeline(
-    ai_client=OpenAIClient(
-        model="deepseek-chat",
+    ai_client=DeepSeekV4Client(
+        model="deepseek-v4-flash",
         api_key="your-api-key",
-        base_url="https://api.deepseek.com/v1"
+        base_url="https://api.deepseek.com",
+        thinking=False  # 关闭可省约50%费用，输出结果一致
     )
 )
 

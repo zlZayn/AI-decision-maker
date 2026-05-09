@@ -1,7 +1,6 @@
 """Stage 5 测试 — 本地执行引擎"""
 
 import pandas as pd
-import pytest
 
 from signalchain.stage5_execute import execute_pipeline, QualityReport
 from signalchain.operations.pass_through import PassThrough

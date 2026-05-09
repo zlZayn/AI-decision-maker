@@ -2,7 +2,6 @@
 
 import json
 import tempfile
-from pathlib import Path
 
 from signalchain.cache import SignalCache
 from signalchain.models import CacheEntry

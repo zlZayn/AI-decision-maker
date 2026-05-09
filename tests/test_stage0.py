@@ -1,10 +1,8 @@
 """Stage 0 测试 — 元信息提取与指纹生成"""
 
 import pandas as pd
-import pytest
 
 from signalchain.stage0_profile import extract_profile, generate_fingerprint
-from signalchain.models import DataProfile
 
 
 class TestExtractProfile:

@@ -5,7 +5,6 @@ import tempfile
 
 from signalchain.pipeline import SignalChainPipeline
 from signalchain.ai_client import MockAIClient
-from signalchain.stage5_execute import QualityReport
 
 
 class SequenceMockAI(MockAIClient):
@@ -119,9 +118,9 @@ class TestSignalChainPipeline:
 
             result, report = pipeline.run(df)
 
-            # S0 场景下所有字段 pass_through
+            # S0 场景下 I→id 重命名，X 保留原列名
             assert list(result["id"]) == ["a", "b"]
-            assert list(result["other"]) == ["c", "d"]
+            assert list(result["col2"]) == ["c", "d"]
 
     def test_empty_dataframe(self):
         """空 DataFrame 处理"""

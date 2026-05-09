@@ -39,7 +39,7 @@ FIELD_NAME_HINTS: dict[str, str] = {
     "diagnosis": "C", "icd": "C", "icd10": "C", "icd_code": "C",
     # 时间类 T
     "date": "T", "time": "T", "datetime": "T", "timestamp": "T",
-    "created_at": "T", "updated_at": "T", "birth_date": "T", "birth_date": "T",
+    "created_at": "T", "updated_at": "T", "birth_date": "T",
     "visit_date": "T", "admission_date": "T", "discharge_date": "T",
     # 金额类 M
     "amount": "M", "price": "M", "cost": "M", "fee": "M", "total": "M",
@@ -268,9 +268,21 @@ def standardize_column_names(
     Returns: {原名: 新名, ...}
     """
     rename_map = {}
+    used_names: set[str] = set()
     for name, code in zip(field_names, signal_sequence):
+        # X=未知字段，保留原名
+        if code == "X":
+            continue
         standard = SIGNAL_STANDARD_NAMES.get(code)
         if not standard or name.strip() == standard:
             continue
-        rename_map[name] = standard
+        # 多个字段映射到同一标准名时，加数字后缀避免重复
+        target = standard
+        if target in used_names:
+            idx = 2
+            while f"{target}{idx}" in used_names:
+                idx += 1
+            target = f"{target}{idx}"
+        used_names.add(target)
+        rename_map[name] = target
     return rename_map
