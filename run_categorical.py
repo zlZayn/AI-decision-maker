@@ -214,9 +214,14 @@ def main():
         method = r.get("method", "?")
         print(f"  {_pad(r['name'], 14)} {r['rows']:>4d} {_pad(types_str, 10)} {_pad(method, 10)} {status:>7s}  {cat_str}")
     print(f"  {'-' * 14} {'-' * 4} {'-' * 10} {'-' * 10} {'-' * 7}  {'-' * 24}")
-    print(f"  total: {len(results)} files | {called_count} called | {cached_count} cached | {total_time:.2f}s | cost: {cost:.6f}")
+
+    print(f"\n{BAR}")
+    print("  Summary")
+    print(BAR)
+    print(f"  files: {len(results)}  |  called: {called_count}  |  cached: {cached_count}  |  time: {total_time:.2f}s  |  cost: {cost:.6f}")
     if usage.prompt_tokens:
         print(f"  tokens: in={usage.prompt_tokens}  out={usage.completion_tokens}")
+    print(BAR)
 
     # ---- 调用 R ----
     print(f"\n{BAR}")
