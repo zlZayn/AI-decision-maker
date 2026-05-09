@@ -106,54 +106,61 @@ python run_clean.py medical
 ```
 AI-decision-maker/
 |
-|-- run_clean.py                 # [脚本] 入口脚本，批量清洗数据
-|
-|-- signal_cache.json            # [脚本] 缓存文件，存储指纹与识别结果
+|-- run_clean.py                 # 入口脚本，批量清洗数据（支持 --no-cache）
+|-- config.py                    # 个人配置（API key，不分享）
+|-- config.example.py            # 配置模板（占位符，可分享）
 |
 |-- signalchain/                 # 核心框架
 |   |
-|   |-- pipeline.py              # [脚本] 主流程编排，协调5个Stage执行
-|   |-- models.py                # [脚本] 数据结构定义（DataProfile、SceneConfig等）
-|   |-- ai_client.py             # [AI] AI客户端封装（OpenAI/DeepSeek）
-|   |-- cache.py                 # [脚本] 缓存系统（指纹生成、读写、失效）
-|   |-- knowledge.py              # [脚本] 语义知识库（映射规则、验证模式）
+|   |-- pipeline.py              # 主流程编排，协调5个Stage执行
+|   |-- models.py                # 数据结构定义（DataProfile、SceneConfig等）
+|   |-- ai_client.py             # AI客户端（DeepSeekV4Client + TokenUsage追踪）
+|   |-- cache.py                 # 缓存系统（指纹生成、读写、失效）
+|   |-- knowledge.py             # 语义知识库（映射规则、验证模式）
+|   |-- tokenizer.py             # 离线token计算（基于DeepSeek官方tokenizer）
 |   |
-|   |-- stage0_profile.py        # [脚本] 元信息提取（字段名、类型、样本）
-|   |-- stage1_scene.py          # [AI] 场景识别（判断数据属于哪种场景）
-|   |-- stage2_router.py         # [脚本] 路由与Prompt组装（查表+组装）
-|   |-- stage3_semantic.py       # [AI] 字段语义识别（识别每个字段的类型）
-|   |-- stage4_assemble.py        # [脚本] 执行计划组装（生成操作链）
-|   |-- stage5_execute.py         # [脚本] 本地执行引擎（执行操作链）
+|   |-- stage0_profile.py        # 元信息提取（字段名、类型、样本）
+|   |-- stage1_scene.py          # 场景识别（判断数据属于哪种场景）
+|   |-- stage2_router.py         # 路由与Prompt组装（查表+组装）
+|   |-- stage3_semantic.py       # 字段语义识别（识别每个字段的类型）
+|   |-- stage4_assemble.py       # 执行计划组装（生成操作链）
+|   |-- stage5_execute.py        # 本地执行引擎（执行操作链）
 |   |
 |   |-- operations/              # 数据处理操作
-|   |   |-- base.py              # [脚本] Operation基类定义
-|   |   |-- registry.py          # [脚本] 操作注册表
-|   |   |
-|   |   |-- pass_through.py      # [脚本] 透传（原样保留）
-|   |   |-- gender.py            # [脚本] 性别标准化
-|   |   |-- age.py               # [脚本] 年龄提取
-|   |   |-- department.py        # [脚本] 科室标准化
-|   |   |-- drug_name.py         # [脚本] 药品名标准化
-|   |   |-- icd10.py             # [脚本] ICD10诊断码校验
-|   |   |-- datetime.py             # [脚本] 日期时间解析
-|   |   |-- currency.py          # [脚本] 金额拆分（分列操作）
-|   |   |-- email.py             # [脚本] 邮箱验证
-|   |   |-- phone.py             # [脚本] 手机号验证
-|   |   |-- log_level.py         # [脚本] 日志级别标准化
-|   |   |-- coordinates.py       # [脚本] 经纬度校验
+|   |   |-- base.py              # Operation基类定义
+|   |   |-- registry.py          # 操作注册表
+|   |   |-- pass_through.py      # 透传（原样保留）
+|   |   |-- gender.py            # 性别标准化
+|   |   |-- age.py               # 年龄提取
+|   |   |-- department.py        # 科室标准化
+|   |   |-- drug_name.py         # 药品名标准化
+|   |   |-- icd10.py             # ICD10诊断码校验
+|   |   |-- datetime.py          # 日期时间解析
+|   |   |-- currency.py          # 金额拆分（分列操作）
+|   |   |-- email.py             # 邮箱验证
+|   |   |-- phone.py             # 手机号验证
+|   |   |-- log_level.py         # 日志级别标准化
+|   |   |-- coordinates.py       # 经纬度校验
 |   |
 |   |-- __init__.py
 |
+|-- examples/
+|   |-- demo.py                  # 离线演示（MockAI，零Token）
+|
+|-- tests/
+|   |-- test_real_e2e.py         # API端到端测试
+|   |-- test_token_comparison.py # 思考模式ON/OFF对比测试
+|   |-- test_pipeline.py         # Pipeline集成测试
+|   |-- test_cache.py            # 缓存测试
+|   |-- test_operations.py       # 操作单元测试
+|   |-- test_stage0-5.py         # 各Stage测试
+|   |-- deepseek_tokenizer/      # DeepSeek官方tokenizer
+|
 |-- data/
-    |-- dirty/                    # 脏数据目录
-    |   |-- medical.csv           # 医疗数据示例
-    |   |-- user.csv              # 用户数据示例
-    |   |-- finance.csv           # 财务数据示例
-    |
-    |-- clean/                    # 清洗后数据目录
-        |-- medical_clean.csv
-        |-- user_clean.csv
-        |-- finance_clean.csv
+|   |-- dirty/                   # 脏数据目录
+|   |-- clean/                   # 清洗后数据目录
+|
+|-- signal_cache.json            # 缓存文件（自动生成）
 ```
 
 ---
