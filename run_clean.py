@@ -20,6 +20,7 @@ from signalchain.ai_client import DeepSeekV4Client
 from config import API_KEY, API_URL, MODEL
 
 logging.getLogger("signalchain").setLevel(logging.ERROR)
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 if sys.platform == "win32":
     os.system("chcp 65001 >nul 2>&1")

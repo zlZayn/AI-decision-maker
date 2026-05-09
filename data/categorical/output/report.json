@@ -1,0 +1,89 @@
+[
+  {
+    "file": "data_A.csv",
+    "var1": "education",
+    "var1_type": "有序",
+    "var2": "satisfaction",
+    "var2_type": "有序",
+    "method": "Spearman",
+    "stat": 0.655,
+    "p": "1.732122e-03",
+    "sig": "**"
+  },
+  {
+    "file": "data_B.csv",
+    "var1": "gender",
+    "var1_type": "无序",
+    "var2": "education",
+    "var2_type": "有序",
+    "method": "Kruskal",
+    "stat": 0.054,
+    "df": 1,
+    "p": "8.155457e-01",
+    "sig": ""
+  },
+  {
+    "file": "data_C.csv",
+    "var1": "gender",
+    "var1_type": "无序",
+    "var2": "blood_type",
+    "var2_type": "无序",
+    "method": "Cramer V",
+    "stat": 0.172,
+    "sig": ""
+  },
+  {
+    "file": "data_D.csv",
+    "var1": "city",
+    "var1_type": "无序",
+    "var2": "satisfaction",
+    "var2_type": "有序",
+    "method": "Kruskal",
+    "stat": 1.115,
+    "df": 3,
+    "p": "7.735291e-01",
+    "sig": ""
+  },
+  {
+    "file": "data_B.csv",
+    "var1": "education",
+    "var1_type": "有序",
+    "var2": "gender",
+    "var2_type": "无序",
+    "method": "卡方检验",
+    "stat": 1.2,
+    "df": 5,
+    "p": "9.448774e-01",
+    "effect": 0.234,
+    "effect_name": "V",
+    "sig": ""
+  },
+  {
+    "file": "data_C.csv",
+    "var1": "gender",
+    "var1_type": "无序",
+    "var2": "blood_type",
+    "var2_type": "无序",
+    "method": "卡方检验",
+    "stat": 0.533,
+    "df": 3,
+    "p": "9.115095e-01",
+    "effect": 0.172,
+    "effect_name": "V",
+    "sig": ""
+  },
+  {
+    "file": "data_D.csv",
+    "var1": "satisfaction",
+    "var1_type": "有序",
+    "var2": "city",
+    "var2_type": "无序",
+    "method": "卡方检验",
+    "stat": 1.833,
+    "df": 9,
+    "p": "9.938373e-01",
+    "effect": 0.167,
+    "effect_name": "V",
+    "sig": ""
+  }
+]

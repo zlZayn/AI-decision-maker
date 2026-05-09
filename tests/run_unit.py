@@ -1,7 +1,7 @@
 """
 SignalChain 本地单元测试 (MockAI · 零Token)
 
-运行：python tests/test_local.py
+运行：python tests/run_unit.py
 """
 
 import os

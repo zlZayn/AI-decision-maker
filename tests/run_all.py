@@ -1,7 +1,12 @@
 """
-SignalChain 全量测试 = test_local + test_real_e2e
+SignalChain 全量测试
 
-运行：python tests/test_all.py
+阶段:
+  1. 本地单元测试 (MockAI · 零Token)
+  2. Pipeline 端到端测试 (DeepSeek · 消耗Token)
+  3. 分类变量端到端测试 (DeepSeek · 消耗Token)
+
+运行：python tests/run_all.py
 """
 
 import os
@@ -17,8 +22,9 @@ if sys.platform == "win32":
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS = [
-    ("1/2 本地单元测试 (MockAI)", os.path.join(ROOT, "tests", "test_local.py")),
-    ("2/2 API 端到端测试 (DeepSeek)", os.path.join(ROOT, "tests", "test_real_e2e.py")),
+    ("1/3 本地单元测试 (MockAI)", os.path.join(ROOT, "tests", "run_unit.py")),
+    ("2/3 Pipeline 端到端测试 (DeepSeek)", os.path.join(ROOT, "tests", "run_e2e_pipeline.py")),
+    ("3/3 分类变量端到端测试 (DeepSeek)", os.path.join(ROOT, "tests", "run_e2e_categorical.py")),
 ]
 
 TAG = "ALL"
@@ -27,7 +33,7 @@ BAR = "=" * 56
 
 def header():
     print(f"\n{BAR}")
-    print(f"  SignalChain · 全量测试 (2 阶段)")
+    print(f"  SignalChain · 全量测试 ({len(SCRIPTS)} 阶段)")
     print(f"{BAR}")
 
 

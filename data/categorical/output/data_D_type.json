@@ -1,0 +1,13 @@
+{
+  "ordinal": {
+    "satisfaction": [
+      "不满意",
+      "一般",
+      "满意",
+      "非常满意"
+    ]
+  },
+  "nominal": [
+    "city"
+  ]
+}

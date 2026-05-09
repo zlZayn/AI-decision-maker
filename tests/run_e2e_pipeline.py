@@ -1,12 +1,15 @@
 """
-SignalChain API 端到端测试 (DeepSeek · 消耗Token)
+SignalChain Pipeline 端到端测试 (DeepSeek · 消耗Token)
 
-运行：python tests/test_real_e2e.py
+运行：python tests/run_e2e_pipeline.py
 """
 
+import logging
 import os
 import sys
 import time
+
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 if sys.platform == "win32":
     os.system("chcp 65001 >nul 2>&1")
@@ -157,7 +160,7 @@ TESTS = [case_medical, case_user, case_finance, case_cache_hit]
 
 def header():
     print(f"\n{BAR}")
-    print(f"  SignalChain · API 端到端测试 · DeepSeek · {MODEL}")
+    print(f"  SignalChain · Pipeline 端到端测试 · DeepSeek · {MODEL}")
     print(f"{BAR}")
 
 

@@ -4,12 +4,15 @@ SignalChain V4 思考模式 Token 消耗对比
 对比 deepseek-v4-flash 在思考/不思考模式下的 token 用量和费用。
 输入 token 用本地 tokenizer 离线计算，输出 token 按实际 API 返回。
 
-运行：python tests/test_token_comparison.py
+运行：python tests/run_token_benchmark.py
 """
 
+import logging
 import os
 import sys
 import time
+
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 if sys.platform == "win32":
     os.system("chcp 65001 >nul 2>&1")

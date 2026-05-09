@@ -1,8 +1,8 @@
 # SignalChain
 
-基于 AI 信号链决策的数据清洗框架，专注于 ETL 流程中的数据标准化环节。
+AI 驱动的数据分析框架，包含两条链路：数据清洗（认字段）和分类变量分析（认分类变量）。
 
-**核心思路**：用 AI 识别"这是什么字段"，用本地脚本执行"怎么清洗"。
+**核心思路**：AI 负责决策，程序负责执行。
 
 ---
 
@@ -12,6 +12,7 @@
 - **本地高效执行**：识别结果通过本地脚本执行，无 Token 浪费
 - **智能缓存**：相同数据结构的文件再次处理时，秒级完成（跳过 AI 调用）
 - **场景感知**：内置医疗、财务、用户、日志、地理 5 种数据场景
+- **分类变量分析**：AI 筛选分类变量并判断有序性，自动选择统计方法
 - **可扩展架构**：通过注册表机制，可自由扩展新的字段类型和处理逻辑
 
 ---
@@ -21,12 +22,14 @@
 ### 1. 安装依赖
 
 ```bash
-pip install pandas openai
+pip install pandas openai openpyxl
 ```
+
+分类变量分析还需要 R 环境，以及 R 包：`tidyverse`、`jsonlite`、`openxlsx`。
 
 ### 2. 配置 API Key
 
-编辑 `run_clean.py`，修改以下配置：
+编辑 `config.py`，修改以下配置：
 
 ```python
 API_KEY = "your-api-key"           # DeepSeek API Key
@@ -49,6 +52,18 @@ python run_clean.py medical
 ```
 
 清洗结果保存在 `data/clean/` 目录。
+
+### 5. 分类变量分析（可选）
+
+```bash
+# 分析分类变量 + 统计检验
+python run_categorical.py
+
+# 强制重新分类（忽略缓存）
+python run_categorical.py --no-cache
+```
+
+分析结果保存在 `data/categorical/output/` 目录（JSON + Excel）。
 
 ---
 
@@ -99,6 +114,35 @@ python run_clean.py medical
 - **SceneCode**：场景码，告诉系统这是哪种数据（S1=医疗，S2=财务，S3=用户...）
 - **signal_sequence**：信号序列，每个字符代表一个字段的类型（如 "G"=性别，"A"=年龄）
 
+### 分类变量分析流程
+
+```
+CSV 输入
+    │
+    ▼
+┌──────────────────────────────────────────────────────────────┐
+│ 第一层 AI：筛选分类变量                                        │
+│ 输入：字段名(类型, N种): 值1, 值2...                           │
+│ 输出：gender,education,satisfaction 或 "无"                    │
+└──────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌──────────────────────────────────────────────────────────────┐
+│ 脚本：提取唯一值 → 第二层 AI：判断有序/无序                     │
+│ 输出：education:小学>本科>硕士 或 "无"                         │
+└──────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌──────────────────────────────────────────────────────────────┐
+│ R 脚本：根据变量类型选择统计方法，执行检验                       │
+│ 有序/有序 → Spearman | 无序/无序 → Cramer's V                 │
+│ 有序/无序 → Kruskal-Wallis | 通用 → 卡方检验                   │
+└──────────────────────────────────────────────────────────────┘
+    │
+    ▼
+report.json + report.xlsx (4 sheets)
+```
+
 ---
 
 ## 文件结构
@@ -106,7 +150,8 @@ python run_clean.py medical
 ```
 AI-decision-maker/
 |
-|-- run_clean.py                 # 入口脚本，批量清洗数据（支持 --no-cache）
+|-- run_clean.py                 # 入口脚本：数据清洗（支持 --no-cache）
+|-- run_categorical.py           # 入口脚本：分类变量分析（支持 --no-cache）
 |-- config.py                    # 个人配置（API key，不分享）
 |-- config.example.py            # 配置模板（占位符，可分享）
 |
@@ -117,7 +162,8 @@ AI-decision-maker/
 |   |-- ai_client.py             # AI客户端（DeepSeekV4Client + TokenUsage追踪）
 |   |-- cache.py                 # 缓存系统（指纹生成、读写、失效）
 |   |-- knowledge.py             # 语义知识库（映射规则、验证模式）
-|   |-- tokenizer.py             # 离线token计算（基于DeepSeek官方tokenizer）
+|   |-- categorical.py           # 分类变量分析（两层AI + 校验）
+|   |-- run_categorical_analysis.R  # R统计分析（tidyverse，4种方法）
 |   |
 |   |-- stage0_profile.py        # 元信息提取（字段名、类型、样本）
 |   |-- stage1_scene.py          # 场景识别（判断数据属于哪种场景）
@@ -144,21 +190,22 @@ AI-decision-maker/
 |   |
 |   |-- __init__.py
 |
-|-- examples/
-|   |-- demo.py                  # 离线演示（MockAI，零Token）
-|
 |-- tests/
-|   |-- test_real_e2e.py         # API端到端测试
-|   |-- test_token_comparison.py # 思考模式ON/OFF对比测试
+|   |-- run_all.py               # 测试总入口
+|   |-- run_unit.py              # 单元测试（pytest）
+|   |-- run_e2e_pipeline.py      # Pipeline端到端测试
+|   |-- run_e2e_categorical.py   # 分类变量端到端测试
+|   |-- test_categorical.py      # 分类变量单元测试
 |   |-- test_pipeline.py         # Pipeline集成测试
 |   |-- test_cache.py            # 缓存测试
 |   |-- test_operations.py       # 操作单元测试
-|   |-- test_stage0-5.py         # 各Stage测试
-|   |-- deepseek_tokenizer/      # DeepSeek官方tokenizer
 |
 |-- data/
 |   |-- dirty/                   # 脏数据目录
 |   |-- clean/                   # 清洗后数据目录
+|   |-- categorical/
+|       |-- input/               # 分类分析输入（data_A~D.csv）
+|       |-- output/              # 分类分析输出（JSON + Excel）
 |
 |-- signal_cache.json            # 缓存文件（自动生成）
 ```
