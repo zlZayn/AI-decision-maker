@@ -72,7 +72,7 @@ python run_categorical.py --no-cache
 数据从"脏 CSV"到"干净 CSV"，经过以下步骤：
 
 | 步骤 | 谁做的 | 做什么 | 输入 | 输出 |
-|------|--------|--------|------|------|
+| --- | --- | --- | --- | --- |
 | 1. 提取元信息 | [脚本] | 读取 CSV，统计每个字段的名字、类型、样本值 | 脏数据 | DataProfile（字段画像） |
 | 2. 生成指纹 | [脚本] | 根据字段信息生成唯一指纹 | DataProfile | fingerprint（哈希值） |
 | 3. 查询缓存 | [脚本] | 查缓存文件，看是否处理过 | fingerprint | 命中/未命中 |
@@ -84,31 +84,14 @@ python run_categorical.py --no-cache
 
 **简化理解**：
 
-```
-脏数据 CSV
-    │
-    ▼
-┌──────────────────────────────────────────────────────────────┐
-│ 第1-3步 [脚本]: 读取数据，生成指纹，查缓存                      │
-└──────────────────────────────────────────────────────────────┘
-    │
-    ▼ (未命中缓存时)
-┌──────────────────────────────────────────────────────────────┐
-│ 第4步 [AI 判断]: 判断这是什么场景 → S1/S2/S3...              │
-│ 第5步 [脚本]: 根据场景组装提示词                               │
-│ 第6步 [AI 判断]: 判断每个字段的类型 → IIGADDNT...           │
-└──────────────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────────────┐
-│ 第7-8步 [脚本]: 把 AI 说的翻译成操作，执行，产出干净数据        │
-└──────────────────────────────────────────────────────────────┘
-    │
-    ▼
-干净数据 CSV
-```
+脏数据 CSV 进入后，分三个阶段处理：
+
+1. **第1-3步 [脚本]**：读取数据，生成指纹，查缓存
+2. **第4-6步 [AI + 脚本]**：未命中缓存时，AI 判断场景和字段类型
+3. **第7-8步 [脚本]**：把 AI 识别结果翻译成操作，执行清洗，产出干净数据
 
 **关键概念**：
+
 - **DataProfile**：数据的"体检报告"，包含每个字段的名字、类型、样本值、缺失率
 - **fingerprint**：数据的"指纹"，相同结构的数据有相同的指纹
 - **SceneCode**：场景码，告诉系统这是哪种数据（S1=医疗，S2=财务，S3=用户...）
@@ -116,98 +99,105 @@ python run_categorical.py --no-cache
 
 ### 分类变量分析流程
 
-```
-CSV 输入
-    │
-    ▼
-┌──────────────────────────────────────────────────────────────┐
-│ 第一层 AI：筛选分类变量                                        │
-│ 输入：字段名(类型, N种): 值1, 值2...                           │
-│ 输出：gender,education,satisfaction 或 "无"                    │
-└──────────────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────────────┐
-│ 脚本：提取唯一值 → 第二层 AI：判断有序/无序                     │
-│ 输出：education:小学>本科>硕士 或 "无"                         │
-└──────────────────────────────────────────────────────────────┘
-    │
-    ▼
-┌──────────────────────────────────────────────────────────────┐
-│ R 脚本：根据变量类型选择统计方法，执行检验                       │
-│ 有序/有序 → Spearman | 无序/无序 → Cramer's V                 │
-│ 有序/无序 → Kruskal-Wallis | 通用 → 卡方检验                   │
-└──────────────────────────────────────────────────────────────┘
-    │
-    ▼
-report.json + report.xlsx (4 sheets)
-```
+CSV 输入后，经过三层处理：
+
+1. **第一层 AI**：筛选分类变量，输出字段名列表（如 gender, education, satisfaction）
+2. **脚本 + 第二层 AI**：提取唯一值，判断每个变量有序还是无序（如 education: 小学 > 本科 > 硕士）
+3. **R 脚本**：根据变量类型自动选择统计方法并执行检验，产出 report.json 和 report.xlsx
 
 ---
 
 ## 文件结构
 
-```
+```text
 AI-decision-maker/
-|
-|-- run_clean.py                 # 入口脚本：数据清洗（支持 --no-cache）
-|-- run_categorical.py           # 入口脚本：分类变量分析（支持 --no-cache）
-|-- config.py                    # 个人配置（API key，不分享）
-|-- config.example.py            # 配置模板（占位符，可分享）
-|
-|-- signalchain/                 # 核心框架
-|   |
-|   |-- pipeline.py              # 主流程编排，协调5个Stage执行
-|   |-- models.py                # 数据结构定义（DataProfile、SceneConfig等）
-|   |-- ai_client.py             # AI客户端（DeepSeekV4Client + TokenUsage追踪）
-|   |-- cache.py                 # 缓存系统（指纹生成、读写、失效）
-|   |-- knowledge.py             # 语义知识库（映射规则、验证模式）
-|   |-- categorical.py           # 分类变量分析（两层AI + 校验）
-|   |-- run_categorical_analysis.R  # R统计分析（tidyverse，4种方法）
-|   |
-|   |-- stage0_profile.py        # 元信息提取（字段名、类型、样本）
-|   |-- stage1_scene.py          # 场景识别（判断数据属于哪种场景）
-|   |-- stage2_router.py         # 路由与Prompt组装（查表+组装）
-|   |-- stage3_semantic.py       # 字段语义识别（识别每个字段的类型）
-|   |-- stage4_assemble.py       # 执行计划组装（生成操作链）
-|   |-- stage5_execute.py        # 本地执行引擎（执行操作链）
-|   |
-|   |-- operations/              # 数据处理操作
-|   |   |-- base.py              # Operation基类定义
-|   |   |-- registry.py          # 操作注册表
-|   |   |-- pass_through.py      # 透传（原样保留）
-|   |   |-- gender.py            # 性别标准化
-|   |   |-- age.py               # 年龄提取
-|   |   |-- department.py        # 科室标准化
-|   |   |-- drug_name.py         # 药品名标准化
-|   |   |-- icd10.py             # ICD10诊断码校验
-|   |   |-- datetime.py          # 日期时间解析
-|   |   |-- currency.py          # 金额拆分（分列操作）
-|   |   |-- email.py             # 邮箱验证
-|   |   |-- phone.py             # 手机号验证
-|   |   |-- log_level.py         # 日志级别标准化
-|   |   |-- coordinates.py       # 经纬度校验
-|   |
-|   |-- __init__.py
-|
-|-- tests/
-|   |-- run_all.py               # 测试总入口
-|   |-- run_unit.py              # 单元测试（pytest）
-|   |-- run_e2e_pipeline.py      # Pipeline端到端测试
-|   |-- run_e2e_categorical.py   # 分类变量端到端测试
-|   |-- test_categorical.py      # 分类变量单元测试
-|   |-- test_pipeline.py         # Pipeline集成测试
-|   |-- test_cache.py            # 缓存测试
-|   |-- test_operations.py       # 操作单元测试
-|
-|-- data/
-|   |-- dirty/                   # 脏数据目录
-|   |-- clean/                   # 清洗后数据目录
-|   |-- categorical/
-|       |-- input/               # 分类分析输入（data_A~D.csv）
-|       |-- output/              # 分类分析输出（JSON + Excel）
-|
-|-- signal_cache.json            # 缓存文件（自动生成）
+├── data/
+│   ├── categorical/
+│   │   ├── input/
+│   │   │   ├── data_A.csv
+│   │   │   ├── data_B.csv
+│   │   │   ├── data_C.csv
+│   │   │   └── data_D.csv
+│   │   └── output/
+│   │       ├── data_A_type.json
+│   │       ├── data_B_type.json
+│   │       ├── data_C_type.json
+│   │       ├── data_D_type.json
+│   │       ├── report.json
+│   │       └── report.xlsx
+│   ├── clean/
+│   │   ├── finance_clean.csv
+│   │   ├── medical_clean.csv
+│   │   └── user_clean.csv
+│   └── dirty/
+│       ├── finance.csv
+│       ├── medical.csv
+│       └── user.csv
+├── docs/
+│   ├── unified_framework_design.md
+│   └── 分类变量有序判断.md
+├── examples/
+│   └── demo.py
+├── signalchain/
+│   ├── operations/
+│   │   ├── __init__.py
+│   │   ├── age.py
+│   │   ├── base.py
+│   │   ├── coordinates.py
+│   │   ├── currency.py
+│   │   ├── datetime.py
+│   │   ├── department.py
+│   │   ├── drug_name.py
+│   │   ├── email.py
+│   │   ├── gender.py
+│   │   ├── icd10.py
+│   │   ├── log_level.py
+│   │   ├── pass_through.py
+│   │   ├── phone.py
+│   │   └── registry.py
+│   ├── __init__.py
+│   ├── ai_client.py
+│   ├── cache.py
+│   ├── categorical.py
+│   ├── knowledge.py
+│   ├── models.py
+│   ├── pipeline.py
+│   ├── run_categorical_analysis.R
+│   ├── stage0_profile.py
+│   ├── stage1_scene.py
+│   ├── stage2_router.py
+│   ├── stage3_semantic.py
+│   ├── stage4_assemble.py
+│   ├── stage5_execute.py
+│   └── tokenizer.py
+├── tests/
+│   ├── __init__.py
+│   ├── run_all.py
+│   ├── run_e2e_categorical.py
+│   ├── run_e2e_pipeline.py
+│   ├── run_token_benchmark.py
+│   ├── run_unit.py
+│   ├── test_cache.py
+│   ├── test_categorical.py
+│   ├── test_operations.py
+│   ├── test_pipeline.py
+│   ├── test_stage0.py
+│   ├── test_stage1.py
+│   ├── test_stage2.py
+│   ├── test_stage3.py
+│   ├── test_stage4.py
+│   └── test_stage5.py
+├── .gitignore
+├── ARCHITECTURE.md
+├── LICENSE
+├── PROJECT_INTRO.md
+├── README.md
+├── config.example.py
+├── config.py
+├── pyproject.toml
+├── run_categorical.py
+├── run_clean.py
+└── signal_cache.json
 ```
 
 ---
@@ -262,7 +252,7 @@ clean, report = SignalChainPipeline.run_local(
 ## 信号码速查表
 
 | 信号码 | 含义 | 标准列名 | 处理操作 |
-|--------|------|----------|----------|
+| --- | --- | --- | --- |
 | I | 编号/ID | id | pass_through |
 | G | 性别 | gender | normalize_gender |
 | A | 年龄 | age | extract_age |
@@ -282,7 +272,7 @@ clean, report = SignalChainPipeline.run_local(
 ## 场景支持
 
 | 场景码 | 场景名 | 支持的信号码 |
-|--------|--------|--------------|
+| --- | --- | --- |
 | S0 | 未知数据 | I, X |
 | S1 | 医疗数据 | I, G, A, D, N, C, T, X |
 | S2 | 财务数据 | I, M, T, X |
@@ -299,6 +289,7 @@ clean, report = SignalChainPipeline.run_local(
 缓存文件：`signal_cache.json`
 
 **缓存失效条件**：
+
 - 代码配置变更（路由表、操作注册表、标准列名等）
 - 字段数量或字段名变更
 - 样本值发生显著变化
