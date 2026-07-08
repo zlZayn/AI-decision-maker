@@ -7,3 +7,4 @@ signal_cache.json
 *.egg
 data/clean/
 config.py
+.venv/
