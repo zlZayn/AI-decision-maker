@@ -310,5 +310,6 @@ clean, report = SignalChainPipeline.run_local(
 
 - 维护索引（规则与仪表盘）→ [AGENTS.md](AGENTS.md)
 - 架构设计 → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- 项目简介 → [PROJECT_INTRO.md](PROJECT_INTRO.md)
 - 核心模块手册 → [signalchain/README.md](signalchain/README.md)
 - 测试手册 → [tests/README.md](tests/README.md)
