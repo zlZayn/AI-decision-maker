@@ -13,7 +13,7 @@
 - `uv run python run_categorical.py [--no-cache]` — 分类变量分析（需 R 环境）
 
 ## 验证快照（2026-08-24 实测）
-- pytest: 137 passed / 0 failed（1 个环境级 .pytest_cache 写入警告）
+- pytest 9.1.1（PEP 735 dev 组）: 137 passed / 0 failed（1 个环境级 .pytest_cache 写入警告）
 
 ## 待办
 - [ ] .python-version 未纳入 git（git status ??），确认是否跟踪
