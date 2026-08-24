@@ -1,4 +1,4 @@
-# SignalChain 架构设计
+# SignalChain 架构说明
 
 本文档详细描述 SignalChain 框架的架构设计、数据流、以及如何进行定制开发。
 

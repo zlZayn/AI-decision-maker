@@ -139,6 +139,7 @@ AI-decision-maker/
 │       ├── medical.csv
 │       └── user.csv
 ├── docs/
+│   ├── ARCHITECTURE.md
 │   ├── unified_framework_design.md
 │   └── 分类变量有序判断.md
 ├── examples/
@@ -177,6 +178,7 @@ AI-decision-maker/
 │   └── tokenizer.py
 ├── tests/
 │   ├── __init__.py
+│   ├── deepseek_tokenizer/
 │   ├── run_all.py
 │   ├── run_e2e_categorical.py
 │   ├── run_e2e_pipeline.py
@@ -193,16 +195,17 @@ AI-decision-maker/
 │   ├── test_stage4.py
 │   └── test_stage5.py
 ├── .gitignore
-├── ARCHITECTURE.md
 ├── LICENSE
 ├── PROJECT_INTRO.md
 ├── README.md
+├── .python-version
 ├── config.example.py
 ├── config.py
 ├── pyproject.toml
 ├── run_categorical.py
 ├── run_clean.py
-└── signal_cache.json
+├── signal_cache.json
+└── uv.lock
 ```
 
 ---
@@ -300,3 +303,12 @@ clean, report = SignalChainPipeline.run_local(
 - 样本值发生显著变化
 
 清除缓存：删除 `signal_cache.json` 文件。
+
+---
+
+## 开发者文档
+
+- 维护索引（规则与仪表盘）→ [AGENTS.md](AGENTS.md)
+- 架构设计 → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- 核心模块手册 → [signalchain/README.md](signalchain/README.md)
+- 测试手册 → [tests/README.md](tests/README.md)
