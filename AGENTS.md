@@ -41,4 +41,5 @@
 - 缓存按引擎分区（schema 2）：切引擎只失效对应命名空间；旧格式文件会在首次加载时整体作废一次
 - 已知边界（官方明示，未修改）：certainty() 把 noul 与 choice 归一到同一尺度并共用阈值，官方明确两者不可比；大 state 会降准确度，但本项目场景判断依赖字段清单（见 [signalchain/SYSTEM1.md](signalchain/SYSTEM1.md)）
 - Jev 单价 $0.042/M 未能在公开文档核实，以 console.typesafe.ai 为准
+- 提交前先看 `git status --porcelain`，确认没有意外的新增（工作区里的临时资产会被 `git add -A` 一起收进提交）；本次教训见 `8e24a33` 的历史重写
 - 本地 tokenizer 资产已移除（`tests/deepseek_tokenizer/` + `signalchain/tokenizer.py`）：它对中文返回 0 token，且即便修好也是第三方尺子、非任何一方计费口径。**token 比较一律用 API 自报数**（见 [signalchain/SYSTEM1.md](signalchain/SYSTEM1.md) §13.4.1）
