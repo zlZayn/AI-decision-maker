@@ -215,6 +215,21 @@ def build_questions(
 # ============================================================
 
 
+@dataclass(frozen=True)
+class _FieldOutcome:
+    """单个字段的系统一判定结果（判定阶段与收尾阶段之间的值对象）
+
+    分开的理由：判定只关心"答案 + 把握程度"，收尾才决定"采用 / 升级 / 落默认值"。
+    合成一个对象后，决策记录可以一次成型，不必先建再原地改。
+    """
+
+    field: FieldProfile
+    code: str
+    certainty: float
+    verdict: str
+    probabilities: dict[str, float] = field(default_factory=dict)
+
+
 @dataclass
 class FastPathResult:
     """系统一快通道的产物（形状与系统二路径完全一致）"""
@@ -284,124 +299,150 @@ class System1Decider:
 
         state = build_state(profile)
         one_pass = self.policy.scene_strategy != "two_pass"
-        decisions: list[DecisionRecord] = []
 
-        # ---- 第 1 次请求：场景（one_pass 时顺带把字段问题一起问了）----
-        first_questions = (
-            build_questions(profile, include_scene=True, verbose_criteria=self.verbose_criteria)
-            if one_pass
-            else {SCENE_QUESTION_ID: choice(
-                "整个数据集属于哪一种业务场景？以字段名的组合为主要依据。",
-                scene_criteria(),
-            )}
-        )
-        response = self._evaluate(state, first_questions)
+        # ---- 第 1 次请求：场景（one_pass 时字段问题搭同一次请求的车）----
+        response = self._evaluate(state, self._opening_questions(profile, one_pass))
         if response is None:
             return None
 
-        scene_code, scene_certainty, scene_decision = self._resolve_scene(response, profile)
-        decisions.append(scene_decision)
+        scene_code, scene_certainty, scene_record = self._resolve_scene(response, profile)
         scene_config = ROUTING_TABLE.get(scene_code, ROUTING_TABLE["S0"])
 
         # ---- two_pass：用该场景的合法码重新问一遍字段 ----
         if not one_pass:
-            response = self._evaluate(
-                state,
-                build_questions(
-                    profile,
-                    include_scene=False,
-                    codes=scene_config.valid_codes,
-                    verbose_criteria=self.verbose_criteria,
-                ),
-            )
+            response = self._evaluate(state, self._field_questions(profile, scene_config))
             if response is None:
                 return None
 
-        # ---- 逐字段：条件化 → 定码 → 门控 ----
-        field_codes: list[str] = []
-        uncertain: list[FieldProfile] = []
-        for field_profile in profile.fields:
-            answer = self._find_field_answer(response, field_profile)
-            if answer is None:
-                logger.info(f"字段 {field_profile.name!r} 无答案，转入升级候选")
-                uncertain.append(field_profile)
-                field_codes.append("X")  # 占位，升级后会覆盖
-                continue
-
-            if one_pass:
-                answer = condition_choice(answer, scene_config.valid_codes)
-            code = answer.choice or "X"
-            cert = certainty(answer)
-            verdict = self.policy.verdict(cert)
-
-            if verdict == "escalate":
-                uncertain.append(field_profile)
-                field_codes.append("X")  # 占位，升级后会覆盖
-                decisions.append(
-                    DecisionRecord(
-                        question_id=field_question_id(field_profile.name),
-                        subject=field_profile.name,
-                        chosen=code,
-                        certainty=cert,
-                        engine="system1",
-                        probabilities=dict(answer.probabilities),
-                        verdict=verdict,
-                    )
-                )
-                continue
-
-            field_codes.append(code)
-            decisions.append(
-                DecisionRecord(
-                    question_id=field_question_id(field_profile.name),
-                    subject=field_profile.name,
-                    chosen=code,
-                    certainty=cert,
-                    engine="system1",
-                    probabilities=dict(answer.probabilities),
-                    verdict=verdict,
-                )
-            )
-
-        # ---- 低置信字段收尾：批量升级，或落保守默认值 ----
-        # 两条路的决策记录必须区分开：没升级就不许写 escalated=True / engine=system2
-        escalated_names: list[str] = []
-        if uncertain and self.fallback is not None:
-            escalated_names = [f.name for f in uncertain]
-            codes_by_name = self._escalate(uncertain, scene_config, scene_code)
-            unresolved: list[str] = []
-            for index, field_profile in enumerate(profile.fields):
-                name = field_profile.name
-                if name not in escalated_names:
-                    continue
-                if name in codes_by_name:
-                    field_codes[index] = codes_by_name[name]
-                    self._mark_escalated(decisions, name, codes_by_name[name])
-                else:
-                    # 系统二调用失败/未覆盖 → 落 X，且不谎报升级成功
-                    field_codes[index] = "X"
-                    self._mark_defaulted(decisions, name, "X")
-                    unresolved.append(name)
-            escalated_names = [n for n in escalated_names if n not in unresolved]
-        elif uncertain:
-            logger.warning(
-                f"{len(uncertain)} 个字段置信度不足且未启用系统二升级，"
-                f"落保守默认值 X（pass_through）: {[f.name for f in uncertain]}"
-            )
-            for field_profile in uncertain:
-                self._mark_defaulted(decisions, field_profile.name, "X")
-
-        signal_sequence = "".join(field_codes)
+        # ---- 逐字段判定 + 低置信收尾 ----
+        outcomes = self._decide_fields(response, profile, scene_config, one_pass)
+        signal_sequence, field_records, escalated_names = self._finalize(
+            outcomes, scene_config, scene_code
+        )
         logger.info(f"系统一快通道：scene={scene_code} signals={signal_sequence}")
 
         return FastPathResult(
             scene_code=scene_code,
             signal_sequence=signal_sequence,
-            decisions=decisions,
+            decisions=[scene_record, *field_records],
             escalated_fields=escalated_names,
             scene_certainty=scene_certainty,
             engine="system1",
             model=getattr(response, "model", ""),
+        )
+
+    # ---- 步骤 ----
+
+    def _opening_questions(self, profile: DataProfile, one_pass: bool) -> dict[str, Any]:
+        """第 1 次请求的问题
+
+        one_pass：场景 + 全部字段一起问（speculative fan-out）
+        two_pass：只问场景，字段留到知道场景后再用合法码集问
+        """
+        if one_pass:
+            return build_questions(
+                profile, include_scene=True, verbose_criteria=self.verbose_criteria
+            )
+        return {SCENE_QUESTION_ID: self._scene_question()}
+
+    def _field_questions(self, profile: DataProfile, scene_config: Any) -> dict[str, Any]:
+        """严格模式下的字段问题：criteria 限定为该场景的合法码"""
+        return build_questions(
+            profile,
+            include_scene=False,
+            codes=scene_config.valid_codes,
+            verbose_criteria=self.verbose_criteria,
+        )
+
+    def _decide_fields(
+        self,
+        response: EvalResponse,
+        profile: DataProfile,
+        scene_config: Any,
+        one_pass: bool,
+    ) -> list["_FieldOutcome"]:
+        """逐字段：条件化 → 定码 → 门控。只判定，不改结果。"""
+        outcomes: list[_FieldOutcome] = []
+        for field in profile.fields:
+            answer = self._find_field_answer(response, field)
+            if answer is None:
+                logger.info(f"字段 {field.name!r} 无答案，转入升级候选")
+                outcomes.append(_FieldOutcome(field, code="X", certainty=0.0, verdict="escalate"))
+                continue
+
+            if one_pass:
+                # 同请求内的字段问题是全码集上的边缘分布，按场景条件化后才可解释
+                answer = condition_choice(answer, scene_config.valid_codes)
+            cert = certainty(answer)
+            outcomes.append(
+                _FieldOutcome(
+                    field=field,
+                    code=answer.choice or "X",
+                    certainty=cert,
+                    verdict=self.policy.verdict(cert),
+                    probabilities=dict(answer.probabilities),
+                )
+            )
+        return outcomes
+
+    def _finalize(
+        self,
+        outcomes: list["_FieldOutcome"],
+        scene_config: Any,
+        scene_code: str,
+    ) -> tuple[str, list[DecisionRecord], list[str]]:
+        """低置信项收尾：批量升级，或落保守默认值
+
+        两条路的记录必须区分开 —— 没升级就不许写 escalated=True / engine=system2。
+        记录在这里一次成型，不做"先建后改"。
+        """
+        uncertain = [o for o in outcomes if o.verdict == "escalate"]
+        resolved: dict[str, str] = {}
+
+        if uncertain and self.fallback is not None:
+            resolved = self._escalate(
+                [o.field for o in uncertain], scene_config, scene_code
+            )
+        elif uncertain:
+            logger.warning(
+                f"{len(uncertain)} 个字段置信度不足且未启用系统二升级，"
+                f"落保守默认值 X（pass_through）: {[o.field.name for o in uncertain]}"
+            )
+
+        codes: list[str] = []
+        records: list[DecisionRecord] = []
+        escalated: list[str] = []
+        for outcome in outcomes:
+            name = outcome.field.name
+            if outcome.verdict != "escalate":
+                code, engine, was_escalated = outcome.code, "system1", False
+            elif name in resolved:
+                # 系统二真的给了答案
+                code, engine, was_escalated = resolved[name], "system2", True
+                escalated.append(name)
+            else:
+                # 无系统二可用，或升级调用失败 → 不猜、不改
+                code, engine, was_escalated = "X", "system1", False
+
+            codes.append(code)
+            records.append(
+                DecisionRecord(
+                    question_id=field_question_id(name),
+                    subject=name,
+                    chosen=code,
+                    certainty=outcome.certainty,
+                    engine=engine,
+                    probabilities=outcome.probabilities,
+                    escalated=was_escalated,
+                    verdict=outcome.verdict,
+                )
+            )
+        return "".join(codes), records, escalated
+
+    def _scene_question(self) -> dict[str, Any]:
+        return choice(
+            "整个数据集属于哪一种业务场景？以字段名的组合为主要依据。",
+            scene_criteria(),
         )
 
     # ---- 内部 ----
@@ -496,26 +537,4 @@ class System1Decider:
         logger.info(f"系统二批量裁决 {len(uncertain)} 个字段 -> {sequence}")
         return {f.name: code for f, code in zip(uncertain, sequence)}
 
-    @staticmethod
-    def _mark_escalated(decisions: list[DecisionRecord], field_name: str, code: str) -> None:
-        """系统二真的给出了答案：来源改为 system2"""
-        for record in decisions:
-            if record.subject == field_name:
-                record.chosen = code
-                record.engine = "system2"
-                record.escalated = True
-                return
 
-    @staticmethod
-    def _mark_defaulted(decisions: list[DecisionRecord], field_name: str, code: str) -> None:
-        """没有可用的系统二：落保守默认值。来源仍是 system1 —— 不谎报升级
-
-        verdict 保留 "escalate"：它记录的是门控当时的判定；
-        escalated=False 说明这次没有真的升级。两者合起来才读得出"该升级但没能升级"。
-        """
-        for record in decisions:
-            if record.subject == field_name:
-                record.chosen = code
-                record.engine = "system1"
-                record.escalated = False
-                return

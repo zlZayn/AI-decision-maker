@@ -63,6 +63,24 @@ ORDINALITY_LEVELS: tuple[str, ...] = (
 )
 
 
+def _dataset_state(profile: DataProfile) -> dict[str, Any]:
+    """两层请求共用的数据集概览"""
+    return {
+        "dataset": {
+            "field_count": profile.field_count,
+            "fields": [
+                {
+                    "name": field.name,
+                    "type": field.type,
+                    "distinct_count": len(field.samples),
+                    "samples": list(field.samples[:8]),
+                }
+                for field in profile.fields
+            ],
+        }
+    }
+
+
 def cat_question_id(field_name: str) -> str:
     return f"{CAT_QUESTION_PREFIX}{field_name}"
 
@@ -231,50 +249,14 @@ class System1CategoricalClassifier:
             return None
 
         self.decisions = []
-        state = {
-            "dataset": {
-                "field_count": profile.field_count,
-                "fields": [
-                    {
-                        "name": f.name,
-                        "type": f.type,
-                        "distinct_count": len(f.samples),
-                        "samples": list(f.samples[:8]),
-                    }
-                    for f in profile.fields
-                ],
-            }
-        }
+        state = _dataset_state(profile)
 
         # ---- 第一层：noul 筛选分类变量 ----
         first = self._evaluate(state, build_categorical_questions(profile))
         if first is None:
             return None
 
-        categorical_fields: list[str] = []
-        borderline: list[str] = []
-        for field_profile in profile.fields:
-            answer = first.answers.get(cat_question_id(field_profile.name))
-            probability = answer.noul if answer is not None and answer.noul is not None else 0.0
-            cert = certainty(answer) if answer is not None else 0.0
-            is_categorical = probability >= 0.5
-            verdict = self.policy.verdict(cert)
-            if verdict == "escalate":
-                borderline.append(field_profile.name)
-            self.decisions.append(
-                DecisionRecord(
-                    question_id=cat_question_id(field_profile.name),
-                    subject=field_profile.name,
-                    chosen="分类变量" if is_categorical else "非分类",
-                    certainty=cert,
-                    engine="system1",
-                    probabilities={"P(分类变量)": probability},
-                    verdict=verdict,
-                )
-            )
-            if is_categorical:
-                categorical_fields.append(field_profile.name)
-
+        categorical_fields, borderline = self._select_categorical_fields(first, profile)
         logger.info(f"系统一第一层：分类变量 = {categorical_fields}（borderline={borderline}）")
 
         if not categorical_fields:
@@ -298,40 +280,84 @@ class System1CategoricalClassifier:
         if second is None:
             return None
 
+        ordinal, scores_by_name = self._classify_levels(
+            second, categorical_fields, unique_values
+        )
+        result = ClassificationResult(
+            ordinal=ordinal,
+            nominal=[name for name in categorical_fields if name not in ordinal],
+        )
+
+        # ---- 升级：把 borderline 字段交给系统二复判（只采纳这些字段的结论）----
+        if borderline and self.fallback is not None:
+            result = self._merge_fallback(df, profile, result, borderline)
+
+        return System1Classification(
+            result=result,
+            decisions=list(self.decisions),
+            borderline=borderline,
+            scores=scores_by_name,
+            model=second.model,
+        )
+
+    # ---- 步骤 ----
+
+    def _select_categorical_fields(
+        self, response: EvalResponse, profile: DataProfile
+    ) -> tuple[list[str], list[str]]:
+        """第一层：逐字段读 noul，返回（分类变量, borderline）
+
+        概率过半即认定为分类变量；把握不足的记进 borderline，交给系统二复判（若启用）。
+        """
+        categorical_fields: list[str] = []
+        borderline: list[str] = []
+        for field in profile.fields:
+            answer = response.answers.get(cat_question_id(field.name))
+            probability = answer.noul if answer is not None and answer.noul is not None else 0.0
+            cert = certainty(answer) if answer is not None else 0.0
+            is_categorical = probability >= 0.5
+            verdict = self.policy.verdict(cert)
+            if verdict == "escalate":
+                borderline.append(field.name)
+            self.decisions.append(
+                DecisionRecord(
+                    question_id=cat_question_id(field.name),
+                    subject=field.name,
+                    chosen="分类变量" if is_categorical else "非分类",
+                    certainty=cert,
+                    engine="system1",
+                    probabilities={"P(分类变量)": probability},
+                    verdict=verdict,
+                )
+            )
+            if is_categorical:
+                categorical_fields.append(field.name)
+        return categorical_fields, borderline
+
+    def _classify_levels(
+        self,
+        response: EvalResponse,
+        categorical_fields: list[str],
+        unique_values: Mapping[str, list[str]],
+    ) -> tuple[dict[str, list[str]], dict[str, dict[str, float]]]:
+        """第二层：逐变量判有序并定序，返回（有序变量→顺序, 有序变量→分数）"""
         ordinal: dict[str, list[str]] = {}
         scores_by_name: dict[str, dict[str, float]] = {}
         for name in categorical_fields:
-            values = list(unique_values.get(name, []))
-            answer = second.answers.get(ordinal_question_id(name))
+            answer = response.answers.get(ordinal_question_id(name))
             probability = answer.noul if answer is not None and answer.noul is not None else 0.0
             cert = certainty(answer) if answer is not None else 0.0
             verdict = self.policy.verdict(cert)
 
-            scores: dict[str, float] = {}
-            level_certainties: list[float] = []
-            for value in values:
-                level_answer = second.answers.get(level_question_id(name, value))
-                if level_answer is None or level_answer.score is None:
-                    continue
-                scores[value] = float(level_answer.score)
-                level_certainties.append(certainty(level_answer))
-
-            order = [value for value, _ in sorted(scores.items(), key=lambda kv: kv[1])]
+            scores, level_certainties = self._level_scores(
+                response, name, list(unique_values.get(name, []))
+            )
             spread = (max(scores.values()) - min(scores.values())) if scores else 0.0
             mean_level_certainty = (
                 sum(level_certainties) / len(level_certainties) if level_certainties else 0.0
             )
-
-            # 有序必须同时满足四个条件：
-            #   1. noul 认为有公认顺序（概率过半）   2. noul 本身够确定
-            #   3. 分数拉得开                       4. 每个取值的分数够确定
-            # 第 1、2 条就是从源头掐掉"男/女被判有序"这类假阳性的那道门。
-            is_ordinal = (
-                probability >= 0.5
-                and cert >= self.policy.escalate
-                and len(scores) >= 2
-                and spread >= self.policy.min_spread
-                and mean_level_certainty >= self.policy.accept
+            is_ordinal = self._is_ordinal(
+                probability, cert, scores, spread, mean_level_certainty
             )
 
             self.decisions.append(
@@ -345,34 +371,53 @@ class System1CategoricalClassifier:
                     verdict=verdict,
                 )
             )
-            if is_ordinal and order:
+            logger.info(
+                f"系统一第二层：{name} 判为{'有序' if is_ordinal else '无序'} "
+                f"(P={probability:.3f} cert={cert:.3f} spread={spread:.2f} "
+                f"level_cert={mean_level_certainty:.3f})"
+                + (f" -> {sorted(scores, key=scores.get)}" if is_ordinal else "")
+            )
+            if is_ordinal and scores:
+                order = sorted(scores, key=scores.get)
                 ordinal[name] = order
                 scores_by_name[name] = {value: scores[value] for value in order}
-                logger.info(
-                    f"系统一第二层：{name} 判为有序 "
-                    f"(P={probability:.3f} cert={cert:.3f} spread={spread:.2f} "
-                    f"level_cert={mean_level_certainty:.3f}) -> {order}"
-                )
-            else:
-                logger.info(
-                    f"系统一第二层：{name} 判为无序 "
-                    f"(P={probability:.3f} cert={cert:.3f} spread={spread:.2f} "
-                    f"level_cert={mean_level_certainty:.3f})"
-                )
+        return ordinal, scores_by_name
 
-        nominal = [name for name in categorical_fields if name not in ordinal]
-        result = ClassificationResult(ordinal=ordinal, nominal=nominal)
+    @staticmethod
+    def _level_scores(
+        response: EvalResponse, name: str, values: list[str]
+    ) -> tuple[dict[str, float], list[float]]:
+        """逐取值读 score，返回（取值 → 刻度位置, 各取值的把握程度）"""
+        scores: dict[str, float] = {}
+        certainties: list[float] = []
+        for value in values:
+            answer = response.answers.get(level_question_id(name, value))
+            if answer is None or answer.score is None:
+                continue
+            scores[value] = float(answer.score)
+            certainties.append(certainty(answer))
+        return scores, certainties
 
-        # ---- 升级：把 borderline 字段交给系统二复判（只采纳这些字段的结论）----
-        if borderline and self.fallback is not None:
-            result = self._merge_fallback(df, profile, result, borderline)
+    def _is_ordinal(
+        self,
+        probability: float,
+        cert: float,
+        scores: Mapping[str, float],
+        spread: float,
+        mean_level_certainty: float,
+    ) -> bool:
+        """有序的四个必要条件
 
-        return System1Classification(
-            result=result,
-            decisions=list(self.decisions),
-            borderline=borderline,
-            scores=scores_by_name,
-            model=second.model,
+        1. noul 认为有公认顺序（概率过半）   2. noul 本身够确定
+        3. 分数拉得开                       4. 每个取值的分数够确定
+        第 1、2 条就是从源头掐掉"男/女被判有序"这类假阳性的那道门。
+        """
+        return (
+            probability >= 0.5
+            and cert >= self.policy.escalate
+            and len(scores) >= 2
+            and spread >= self.policy.min_spread
+            and mean_level_certainty >= self.policy.accept
         )
 
     # ---- 内部 ----
