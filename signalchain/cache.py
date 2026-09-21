@@ -1,7 +1,27 @@
-"""数据指纹缓存 — fingerprint → CacheEntry
+"""数据指纹缓存 —— 一个文件，按决策引擎分区
 
-缓存命中时跳过 Stage 1-3，零 Token 消耗。
-自动根据代码配置计算哈希，代码变更自动失效。
+为什么要分区
+------------
+系统一（Jev）与系统二（LLM）对同一个 fingerprint 会给出不同的决策，来源与置信度都不同，
+两者的缓存必须各自独立。早期实现只维护一份全局配置指纹：加载时哈希不匹配就整体丢弃，
+保存时又只写自己那部分 —— 于是交替运行会把对方的分区冲掉。
+
+磁盘结构（SCHEMA_VERSION = 2）
+------------------------------
+
+    {
+      "schema": 2,
+      "namespaces": {
+        "<决策引擎标识>": {
+          "fingerprint": "<16 hex>",
+          "entries": {"<数据指纹>": {"scene_code": "...", "signal_sequence": "..."}}
+        }
+      }
+    }
+
+失效规则：加载时逐命名空间比对配置指纹，不匹配的丢弃、匹配的保留。
+写入时只更新本命名空间的条目，其余命名空间原样写回。
+清空全部缓存仍然是删除 signal_cache.json 一个文件。
 """
 
 from __future__ import annotations
@@ -9,97 +29,169 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from signalchain.models import CacheEntry
 
 logger = logging.getLogger(__name__)
 
+SCHEMA_VERSION = 2
 DEFAULT_CACHE_FILE = "signal_cache.json"
+DEFAULT_NAMESPACE = "system2"
 
 
-def _code_hash(engine_id: str = "system2") -> str:
-    """计算当前代码配置 + 决策引擎的哈希，任一变更都会让缓存自动失效
+def config_fingerprint(namespace: str = DEFAULT_NAMESPACE) -> str:
+    """当前代码配置 + 命名空间的指纹
 
-    engine_id 必须参与哈希：同一个 fingerprint 由 Jev 判和由 LLM 判，
-    得到的置信度与来源完全不同。不纳入的话，换引擎之后旧缓存会被静默复用，
-    而它的决策来源已经不可追溯 —— 这正好破坏了引入系统一的初衷。
+    配置或引擎任一变化都会让**该命名空间**的缓存失效。
+    namespace（决策引擎标识）必须参与：同一个数据指纹由 Jev 判和由 LLM 判，
+    来源与置信度完全不同，混用会让决策不可追溯。
+
+    延迟导入，避免与 stage2_router / operations 形成循环依赖。
     """
-    # 延迟导入，避免循环依赖
-    from signalchain.stage2_router import ROUTING_TABLE, SIGNAL_STANDARD_NAMES
     from signalchain.operations.registry import OPERATION_REGISTRY
+    from signalchain.stage2_router import ROUTING_TABLE, SIGNAL_STANDARD_NAMES
 
-    h = hashlib.sha256()
-    h.update(f"engine={engine_id}".encode())
-    # 路由表 → 场景名 + valid_codes + operations 映射
-    for code, cfg in sorted(ROUTING_TABLE.items()):
-        h.update(code.encode())
-        h.update(cfg.scene_name.encode())
-        h.update("".join(sorted(cfg.valid_codes)).encode())
-        h.update(str(sorted(cfg.operations.items())).encode())
-    # 标准列名映射
-    h.update(str(sorted(SIGNAL_STANDARD_NAMES.items())).encode())
-    # 可用操作列表
-    h.update(str(sorted(OPERATION_REGISTRY.keys())).encode())
-    return h.hexdigest()[:16]
+    parts = [f"namespace={namespace}"]
+    for code, scene in sorted(ROUTING_TABLE.items()):
+        parts.append(
+            f"{code}|{scene.scene_name}|"
+            f"{''.join(sorted(scene.valid_codes))}|{sorted(scene.operations.items())}"
+        )
+    parts.append(str(sorted(SIGNAL_STANDARD_NAMES.items())))
+    parts.append(str(sorted(OPERATION_REGISTRY)))
+    return hashlib.sha256("\n".join(parts).encode()).hexdigest()[:16]
+
+
+@dataclass
+class _Namespace:
+    """一个决策引擎的缓存分区"""
+
+    fingerprint: str
+    entries: dict[str, dict[str, Any]] = field(default_factory=dict)
+
+    def to_payload(self) -> dict[str, Any]:
+        return {"fingerprint": self.fingerprint, "entries": self.entries}
+
+    @classmethod
+    def from_payload(cls, payload: object, expected: str, name: str) -> "_Namespace | None":
+        """还原一个分区；结构非法或配置指纹不匹配时返回 None"""
+        if not isinstance(payload, dict):
+            return None
+        entries = payload.get("entries")
+        if not isinstance(entries, dict):
+            return None
+        if payload.get("fingerprint") != expected:
+            logger.info(f"命名空间 {name} 的缓存已失效（配置或引擎变更）")
+            return None
+        return cls(fingerprint=expected, entries=dict(entries))
 
 
 class SignalCache:
-    """
-    缓存结构：fingerprint → CacheEntry(scene_code, signal_sequence)
+    """按决策引擎分区的指纹缓存
 
-    缓存附带代码哈希 _code_hash，代码变更时自动全量失效。
+        cache = SignalCache("signal_cache.json", namespace=engine_id)
+        cache.put(fingerprint, CacheEntry("S1", "IGADN", certainty=1.0, engine="system1"))
+        entry = cache.get(fingerprint)
     """
 
-    def __init__(self, cache_file: str | Path = DEFAULT_CACHE_FILE, engine_id: str = "system2"):
-        self._in_memory = str(cache_file) == ":memory:"
-        self._engine_id = engine_id
-        self.cache_file = None if self._in_memory else Path(cache_file)
-        self.cache: dict[str, dict[str, str]] = {} if self._in_memory else self._load()
+    def __init__(
+        self,
+        cache_file: str | Path = DEFAULT_CACHE_FILE,
+        namespace: str = DEFAULT_NAMESPACE,
+    ):
+        self._namespace = namespace
+        self._path = None if str(cache_file) == ":memory:" else Path(cache_file)
+        self._fingerprint = config_fingerprint(namespace)
+        self._namespaces = self._read()
+        if namespace not in self._namespaces:
+            # 新引擎首次使用，或本命名空间的分区刚刚失效
+            self._namespaces[namespace] = _Namespace(self._fingerprint)
+
+    # ---- 公开 API ----
+
+    @property
+    def namespace(self) -> str:
+        return self._namespace
+
+    @property
+    def path(self) -> Path | None:
+        return self._path
 
     def get(self, fingerprint: str) -> CacheEntry | None:
-        entry = self.cache.get(fingerprint)
-        if entry is None:
-            return None
-        # certainty / engine 是系统一引入后新增的可选字段：老缓存没有也能读
-        return CacheEntry(
-            scene_code=entry["scene_code"],
-            signal_sequence=entry["signal_sequence"],
-            certainty=float(entry.get("certainty", 0.0) or 0.0),
-            engine=entry.get("engine", "") or "",
-        )
+        return CacheEntry.from_payload(self._entries.get(fingerprint))
 
     def put(self, fingerprint: str, entry: CacheEntry) -> None:
-        payload: dict[str, object] = {
-            "scene_code": entry.scene_code,
-            "signal_sequence": entry.signal_sequence,
-        }
-        if entry.engine:
-            payload["engine"] = entry.engine
-        if entry.certainty:
-            payload["certainty"] = entry.certainty
-        self.cache[fingerprint] = payload
-        self._save()
+        self._entries[fingerprint] = entry.to_payload()
+        self._write()
 
-    def _load(self) -> dict[str, dict[str, str]]:
-        expected_hash = _code_hash(self._engine_id)
+    def clear(self) -> None:
+        """只清空本命名空间"""
+        self._entries.clear()
+        self._write()
+
+    def items(self) -> list[tuple[str, CacheEntry]]:
+        """本命名空间的全部条目，排查与展示用"""
+        restored = (
+            (fingerprint, CacheEntry.from_payload(payload))
+            for fingerprint, payload in self._entries.items()
+        )
+        return [(fingerprint, entry) for fingerprint, entry in restored if entry is not None]
+
+    def namespaces(self) -> list[str]:
+        """缓存文件里现有哪些引擎的分区"""
+        return sorted(self._namespaces)
+
+    def __len__(self) -> int:
+        return len(self._entries)
+
+    def __contains__(self, fingerprint: object) -> bool:
+        return fingerprint in self._entries
+
+    # ---- 内部 ----
+
+    @property
+    def _entries(self) -> dict[str, dict[str, Any]]:
+        return self._namespaces[self._namespace].entries
+
+    def _read(self) -> dict[str, _Namespace]:
+        if self._path is None:
+            return {}
         try:
-            with open(self.cache_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            if data.get("_code_hash") != expected_hash:
-                logger.info("Code changed, cache invalidated")
-                return {}
-            return data.get("entries", {})
+            with open(self._path, "r", encoding="utf-8") as handle:
+                data = json.load(handle)
         except (FileNotFoundError, json.JSONDecodeError):
             return {}
 
-    def _save(self) -> None:
-        if self._in_memory:
+        if not isinstance(data, dict) or data.get("schema") != SCHEMA_VERSION:
+            # 旧格式或损坏：条目无法归属到引擎，只能整体作废（一次性损失）
+            logger.info(f"缓存不是 schema {SCHEMA_VERSION}，整体作废")
+            return {}
+
+        raw = data.get("namespaces")
+        if not isinstance(raw, dict):
+            return {}
+
+        namespaces: dict[str, _Namespace] = {}
+        for name, payload in raw.items():
+            if not isinstance(name, str):
+                continue
+            restored = _Namespace.from_payload(payload, config_fingerprint(name), name)
+            if restored is not None:
+                namespaces[name] = restored
+        return namespaces
+
+    def _write(self) -> None:
+        if self._path is None:
             return
-        with open(self.cache_file, "w", encoding="utf-8") as f:
-            json.dump(
-                {"_code_hash": _code_hash(self._engine_id), "entries": self.cache},
-                f,
-                indent=2,
-                ensure_ascii=False,
-            )
+        payload = {
+            "schema": SCHEMA_VERSION,
+            "namespaces": {
+                name: namespace.to_payload()
+                for name, namespace in self._namespaces.items()
+            },
+        }
+        with open(self._path, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2, ensure_ascii=False)

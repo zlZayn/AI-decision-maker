@@ -484,21 +484,32 @@ QualityReport:
 
 ### 缓存结构
 
+一个文件，按**决策引擎分区**（命名空间）。两套系统的决策来源与置信度不同，
+缓存必须各自独立，因此分区而非共用一份：
+
 ```json
 {
-  "_code_hash": "a1b2c3d4e5f6g7h8",
-  "entries": {
-    "fingerprint1": {
-      "scene_code": "S1",
-      "signal_sequence": "IIGADDNT"
+  "schema": 2,
+  "namespaces": {
+    "system2": {
+      "fingerprint": "776a4625cd1e430b",
+      "entries": {
+        "fingerprint1": { "scene_code": "S1", "signal_sequence": "IIGADDNT" }
+      }
     },
-    "fingerprint2": {
-      "scene_code": "S3",
-      "signal_sequence": "IIXGAPE"
+    "jev:jev-latest": {
+      "fingerprint": "941075cd2a2a1eb7",
+      "entries": {
+        "fingerprint1": { "scene_code": "S1", "signal_sequence": "IGADN",
+                          "engine": "system1", "certainty": 1.0 }
+      }
     }
   }
 }
 ```
+
+同一个数据指纹可以同时存在于多个命名空间，各自独立取值 —— 这正是交替运行两个模式时
+互不干扰的原因。条目的 `engine` / `certainty` 为可选字段，用于记录决策来源与置信度。
 
 ### 指纹生成算法
 
@@ -514,19 +525,21 @@ fingerprint = MD5(
 
 ### 缓存失效策略
 
-缓存文件附带 `_code_hash`，每次加载时检查：
+每个命名空间各带一份配置指纹，加载时**逐命名空间**比对：
 
 ```python
-def _code_hash() -> str:
-    """计算当前代码配置的哈希"""
+def config_fingerprint(namespace: str) -> str:
+    """当前代码配置 + 命名空间的指纹"""
     h = hashlib.sha256()
-    h.update(ROUTING_TABLE)    # 路由表变化
-    h.update(SIGNAL_STANDARD_NAMES)  # 标准列名变化
-    h.update(OPERATION_REGISTRY)     # 操作注册表变化
+    h.update(f"namespace={namespace}".encode())  # 引擎变化
+    h.update(ROUTING_TABLE)                      # 路由表变化
+    h.update(SIGNAL_STANDARD_NAMES)              # 标准列名变化
+    h.update(OPERATION_REGISTRY)                 # 操作注册表变化
     return h.hexdigest()[:16]
 ```
 
-**任何代码配置变更都会导致全量缓存失效**。
+**只失效指纹不匹配的那个命名空间，其余原样保留**。
+早期实现只维护一份全局指纹，两个引擎交替运行会互相冲掉对方的分区。
 
 ### 缓存命中流程
 
@@ -540,7 +553,8 @@ def _code_hash() -> str:
    - `cache.put(fingerprint, result)` 写入缓存
    - 执行 Stage 4-5
 
-**缓存失效**：任何代码配置变更（路由表、标准列名、操作注册表）都会导致全量缓存失效。
+**缓存失效**：代码配置变更或切换决策引擎，只让对应命名空间失效，不影响另一个引擎的缓存。
+清空全部缓存仍然是删除 `signal_cache.json` 一个文件。
 
 ---
 

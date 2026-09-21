@@ -370,23 +370,38 @@ class TestPipelineIntegration:
             assert list(result["gender"]) == ["男", "女", "男"]
             assert len(fallback_ai.call_log) == 2  # 两次系统二调用都发生了
 
-    def test_engine_id_enters_cache_hash(self):
-        """换引擎必须让缓存失效，否则决策来源不可追溯"""
+    def test_engine_partitions_are_independent(self):
+        """两套系统的缓存分区互不覆盖：各自保留自己的决策
+
+        早期实现用单一 _code_hash 整体比对，交替跑会让后一个引擎冲掉前一个的条目，
+        导致系统一每次都要重新问 Jev。
+        """
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "c.json")
-            pipeline_s1 = SignalChainPipeline(
-                cache_file=path, evaluator=MockEvaluator(handler=medical_handler)
-            )
-            pipeline_s1.run(medical_frame())
-            assert pipeline_s1._engine_id() == "mock:jev"
 
+            evaluator = MockEvaluator(handler=medical_handler)
+            pipeline_s1 = SignalChainPipeline(cache_file=path, evaluator=evaluator)
+            assert pipeline_s1._engine_id() == "mock:jev"
+            pipeline_s1.run(medical_frame())
+            assert len(evaluator.call_log) == 1
+
+            # 同一份数据、同一个 fingerprint：系统二必须自己判一次，而不是吃系统一的缓存
             pipeline_s2 = SignalChainPipeline(
                 ai_client=TwoCallMockAI("S1", MEDICAL_CODES), cache_file=path
             )
             assert pipeline_s2._engine_id() == "system2"
-            # 系统二读同一份缓存文件：哈希不同 → 视为未命中 → 会真的调用系统二
             pipeline_s2.run(medical_frame())
             assert len(pipeline_s2.ai.call_log) == 2
+
+            # 关键：回到系统一，它的缓存必须还在（旧实现会被系统二冲掉）
+            pipeline_s1_again = SignalChainPipeline(
+                cache_file=path, evaluator=MockEvaluator(handler=medical_handler)
+            )
+            pipeline_s1_again.run(medical_frame())
+            assert pipeline_s1_again.decisions[0].engine == "cache"
+
+            # 两个分区同时存在于同一个缓存文件
+            assert SignalCache(path, namespace="system2").namespaces() == ["mock:jev", "system2"]
 
     def test_cache_hit_records_decision_with_engine_cache(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -409,10 +424,11 @@ class TestPipelineIntegration:
                 cache_file=path, evaluator=MockEvaluator(handler=medical_handler)
             )
             pipeline.run(medical_frame())
-            cache = SignalCache(path, engine_id="mock:jev")
-            entries = list(cache.cache.values())
-            assert entries and entries[0]["engine"] == "system1"
-            assert entries[0]["certainty"] == pytest.approx(1.0)
+            cache = SignalCache(path, namespace="mock:jev")
+            entries = cache.items()
+            assert len(entries) == 1
+            assert entries[0][1].engine == "system1"
+            assert entries[0][1].certainty == pytest.approx(1.0)
 
     def test_no_evaluator_means_no_decisions(self):
         with tempfile.TemporaryDirectory() as tmp:

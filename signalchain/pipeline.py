@@ -72,7 +72,7 @@ class SignalChainPipeline:
             if evaluator is not None
             else None
         )
-        self.cache = SignalCache(cache_file, engine_id=self._engine_id())
+        self.cache = SignalCache(cache_file, namespace=self._engine_id())
         self.routing = ROUTING_TABLE
         self.prompt_log: list[str] = []  # 捕获发送给 AI 的 prompt
         self.decisions: list[DecisionRecord] = []  # 决策日志（系统一才有内容）

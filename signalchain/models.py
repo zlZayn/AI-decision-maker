@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from collections import Counter
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -60,6 +62,40 @@ class CacheEntry:
     signal_sequence: str     # 字段信号序列，如 "IGADN"
     certainty: float = 0.0   # 场景决策时的把握程度（0 表示未知/老缓存）
     engine: str = ""         # 决策来源，如 "system1" / "system2"
+
+    # 序列化归值对象自己管：缓存层不需要知道字段名，
+    # 字段增删只会波及这一个文件。
+
+    def to_payload(self) -> dict[str, Any]:
+        """转成缓存条目；可选字段取默认值时省略，保持文件紧凑"""
+        payload: dict[str, Any] = {
+            "scene_code": self.scene_code,
+            "signal_sequence": self.signal_sequence,
+        }
+        if self.engine:
+            payload["engine"] = self.engine
+        if self.certainty:
+            payload["certainty"] = self.certainty
+        return payload
+
+    @classmethod
+    def from_payload(cls, payload: Mapping[str, Any] | None) -> "CacheEntry | None":
+        """从缓存条目还原；必需字段缺失或类型不对时返回 None（按未命中处理）
+
+        可选字段（engine / certainty）缺失是合法的：老缓存文件没有它们。
+        """
+        if not isinstance(payload, Mapping):
+            return None
+        scene_code = payload.get("scene_code")
+        signal_sequence = payload.get("signal_sequence")
+        if not isinstance(scene_code, str) or not isinstance(signal_sequence, str):
+            return None
+        return cls(
+            scene_code=scene_code,
+            signal_sequence=signal_sequence,
+            certainty=float(payload.get("certainty") or 0.0),
+            engine=str(payload.get("engine") or ""),
+        )
 
 
 @dataclass
