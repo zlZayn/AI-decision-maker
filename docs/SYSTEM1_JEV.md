@@ -37,29 +37,24 @@ Jev 是系统一引擎：**输入结构化 state + 类型化 questions，输出�
 
 项目的名字是 **AI-decision-maker**，但"决策"目前只有一档。补上中间层：
 
-```
-                   ┌─────────────────────────────────────────┐
-   输入 ──────────▶ │  System 0  本地查表（反射）              │  微秒 / 0 Token
-   DataProfile      │  FIELD_NAME_HINTS · STANDARD_NAME_ALIASES│  精确匹配，无推断
-                   └───────────────┬─────────────────────────┘
-                                   │ 未决
-                   ┌───────────────▼─────────────────────────┐
-                   │  System 1  Jev（直觉）                   │  ~1 次前向 / 输出免费
-                   │  choice / noul / score → 概率分布        │  结构化 state，闭集答案
-                   └───────────────┬─────────────────────────┘
-                          置信度 ≥ 阈值 │ 置信度 < 阈值（不确定性显式化）
-                                   │         │
-                                   │  ┌──────▼──────────────────────────┐
-                                   │  │  System 2  LLM（审慎）           │ 0.5–2s / 计费
-                                   │  │  只对"不确定的那几个字段"提问     │ 开放式、可生成文本
-                                   │  └──────┬──────────────────────────┘
-                                   ▼         ▼
-                   ┌─────────────────────────────────────────┐
-                   │  记忆  指纹缓存（含决策来源与置信度）      │  微秒 / 0 Token
-                   └───────────────┬─────────────────────────┘
-                                   ▼
-                        本地执行（stage4 → stage5）· 零 Token
-```
+| 层 | 引擎 | 职责 | 成本 |
+| --- | --- | --- | --- |
+| System 0 | 本地查表 | 字段名精确匹配（FIELD_NAME_HINTS · STANDARD_NAME_ALIASES），不做推断 | 微秒 / 0 Token |
+| System 1 | Jev | 闭集分类判断：场景码、信号码、是否分类变量、是否有序 | 1 次请求 / 输出不计费 |
+| System 2 | LLM | 开放式判断；以及系统 1 低置信时的升级裁决（可选） | 0.5–2s / 按 token 计费 |
+| 记忆 | 指纹缓存 | 记住决策结果、来源与置信度 | 微秒 / 0 Token |
+
+判断流向：System 0 未决 → System 1 → 低置信项交系统 2 或落保守默认值 → 写缓存 → 本地执行（stage4 → stage5）。
+
+两套系统默认**互不依赖**，三种运行形态：
+
+| 形态 | 构造方式 | 低置信时的行为 |
+| --- | --- | --- |
+| 纯系统二 | 只传 `ai_client` | 不涉及 |
+| 纯系统一 | 只传 `evaluator` | 字段落 `X`（pass_through）；场景沿用系统 1 答案并过 `validate_scene_code`；有序性判"无序" |
+| 串联 | 两个都传 + `escalate_to_system2=True` | 字段批量升级、场景升级；分类变量的 borderline 字段交系统 2 复判 |
+
+串联是**显式选择**：不传 `escalate_to_system2` 时，decider 拿不到系统 2 客户端，物理上无法串联。
 
 关键点：**门控（gate）才是"决策者"**。System 1 给概率，代码决定"这个概率够不够格直接执行"。
 官方文档把这两件事分别叫 [Confidence-gated routing](https://docs.typesafe.ai/patterns/confidence-routing) 与
@@ -70,7 +65,7 @@ Jev 是系统一引擎：**输入结构化 state + 类型化 questions，输出�
 1. **答案集合在请求时已知且封闭** — 场景 S0–S5（6 个）、信号码（13 个）、是否分类变量（是/否）
 2. **判断可从少量结构化证据完成** — 字段名 + 类型 + 样本值，正是 `DataProfile` 已有的东西
 3. **不需要生成文本** — 我们只要代码，不要解释
-4. **错误可被下游吸收** — 有门控 + 有系统二兜底 + 有缓存
+4. **错误可被下游吸收** — 有门控 + 保守默认值（可选升级系统 2）+ 有缓存
 
 清洗链路的 stage1 / stage3、分类链路的两层，**全部满足**。
 反过来：`unified_framework_design` 里"让 AI 写清洗规则"这类**开放式生成**任务不满足条件 1 和 3，永远留在系统二。
@@ -84,7 +79,7 @@ Jev 是系统一引擎：**输入结构化 state + 类型化 questions，输出�
 
 | 现有 | System 1 形态 | 净效果 |
 | --- | --- | --- |
-| Stage 1 场景识别（1 次 LLM 调用） | `scene`: **choice**，criteria = `{S0:未知数据, S1:医疗数据, ... S5:地理数据}` | 非法场景码**不可表示**；`[:2]` 截断 + 静默回落 S0 整段删除，换成"置信度不足 → 升级系统二" |
+| Stage 1 场景识别（1 次 LLM 调用） | `scene`: **choice**，criteria = `{S0:未知数据, S1:医疗数据, ... S5:地理数据}` | 非法场景码**不可表示**；`[:2]` 截断 + 静默回落 S0 整段删除，换成"置信度不足 → 显式处理（默认保守，可选升级）" |
 | Stage 3 字段信号（1 次 LLM 调用） | 每个字段 1 个 **choice**，question_id = `field:<字段名>`，criteria = 全 13 个信号码 → 本地按场景条件化 | 定长字符串协议删除；串位不可能（**按 key 取答，不按位置**）；每字段自带概率分布 |
 | `compress_samples` 启发式 | `state` 传结构化对象，样本进 `state.<字段>.samples` | 样本压缩从"防判断退化的正确性 hack"降级为"成本旋钮" |
 | `_format_code_options` + `FIELD_SEMANTIC_TEMPLATE` | **criteria 即选项**，不需要把选项写成文本 | 提示词脚手架整体删除 |
@@ -303,7 +298,7 @@ class DecisionRecord:
 | `signalchain/categorical_system1.py` | 分类链路系统一通道（noul 筛选 + score 定序） | 已实现 |
 | `signalchain/models.py` | + `DecisionRecord` / `FieldDecision` | 已实现 |
 | `signalchain/cache.py` | 引擎标识进哈希；条目可选记录置信度与来源 | 已实现 |
-| `signalchain/pipeline.py` | 可选 `evaluator=` 参数；命中则走系统一，否则**原路不动** | 已实现 |
+| `signalchain/pipeline.py` | 可选 `evaluator=` 参数；`escalate_to_system2` 默认 False（两套系统解耦） | 已实现 |
 | `tests/test_system1.py` | 置信度数学 / 条件化 / 异常归类 / 问题构造 / Mock | 97 项用例 |
 | `tests/test_fastpath.py` | 门控 / 批量升级 / 与系统二路径结果一致性 | 同上 |
 | `tests/test_categorical_system1.py` | noul 筛选 / 有序性门 / 假阳性回归 | 同上 |
@@ -317,13 +312,19 @@ class DecisionRecord:
 # 今天怎么写，明天还怎么写 —— 不传 evaluator 就是系统二
 pipeline = SignalChainPipeline(ai_client=DeepSeekV4Client(...))
 
-# 开启系统一：Jev 先判，拿不准的字段自动升级给系统二
+# 纯系统一：不传 ai_client，系统二完全不参与（低置信落保守默认值）
 from signalchain.system1 import JevEvaluator
 pipeline = SignalChainPipeline(
-    ai_client=DeepSeekV4Client(...),          # 系统二：兜底 + 升级裁决
-    evaluator=JevEvaluator(),                  # 系统一：主路径（Key 读 TYPESAFE_API_KEY）
+    evaluator=JevEvaluator(),                  # Key 读 config 的 SYSTEM1_API_KEY
 )
 clean, report = pipeline.run(df)
+
+# 串联（可选）：系统一拿不准时交系统二裁决，必须显式开启
+pipeline = SignalChainPipeline(
+    ai_client=DeepSeekV4Client(...),
+    evaluator=JevEvaluator(),
+    escalate_to_system2=True,
+)
 
 for d in pipeline.decisions:                   # 新增：可审计决策日志
     print(f"{d.subject:<16} {d.chosen}  certainty={d.certainty:.3f}  via {d.engine}"
@@ -338,12 +339,16 @@ for d in pipeline.decisions:                   # 新增：可审计决策日志
 @dataclass
 class GatePolicy:
     accept: float = 0.80          # certainty ≥ 0.80 → 直接执行
-    escalate: float = 0.55        # certainty < 0.55 → 升级系统二
-                                  # 中间带：接受但标记 provisional（记日志，不入长期缓存）
+    escalate: float = 0.55        # certainty < 0.55 → 交系统二（需启用串联），否则落保守默认值
+                                  # 中间带 [0.55, 0.80)：接受但标记 provisional
     min_spread: float = 1.0       # 分类变量：分数离散度阈值（有序性判据）
     max_levels: int = 12          # 取值数超过此值不再逐个打 score，直接判无序
     scene_strategy: str = "one_pass"   # "one_pass"（1 次请求）| "two_pass"（严格条件化，2 次请求）
 ```
+
+⚠️ **已知文档与实现不一致**：provisional 早期设计为"不入长期缓存"，
+但 pipeline 当前**无条件写缓存**，中间带结果同样会被固化。
+是跳过缓存还是照常缓存并在命中时重判，尚未定（见 [../AGENTS.md](../AGENTS.md) 待办）。
 
 **为什么是两档阈值而不是一档**：中间带是真实存在的。
 0.6 的判断不该直接丢给系统二（贵、慢、也未必更准），但它也不配进长期缓存。
@@ -540,6 +545,8 @@ instructions，可以再省几百 token。需要先实测确认场景准确率�
 
 - **升级路径没有在线跑过**：低置信字段升级给系统二这条分支只能用 Mock 验证
   （现有离线测试覆盖了），真实 Jev 一直给出高置信答案，没有自然触发过。
+  纯系统一形态已在线跑通（`run_clean.py --system1`、`run_categorical.py --system1`，
+  后者含 R 统计出报告）；升级形态未在线跑过。
 - **`two_pass` 严格模式没在线跑过**：只跑了默认的 `one_pass`。
 - **token 与费用换算**：TypeSafe 的实际单价需以控制台为准，本设计只测了 token 量。
 - **样本量小**：3 个数据集 / 16 个字段 / 5 个分类变量。领域词更生僻时应重跑 `run_smoke_jev.py`。

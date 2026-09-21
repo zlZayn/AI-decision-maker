@@ -9,19 +9,20 @@
 
 ## 常用命令（可执行规范）
 - `uv run pytest` — 单元测试
-- `uv run python run_clean.py [名称] [--no-cache]` — 清洗 data/dirty/ → data/clean/
-- `uv run python run_categorical.py [--no-cache]` — 分类变量分析（需 R 环境）
+- `uv run python run_clean.py [名称] [--no-cache]` — 清洗 data/dirty/ → data/clean/（纯系统二）
+- `uv run python run_clean.py [名称] --system1` — 纯系统一（Jev），不需要 DeepSeek Key
+- `uv run python run_clean.py [名称] --system1 --escalate` — 串联：系统一低置信时交系统二
+- `uv run python run_categorical.py [--no-cache] [--system1] [--escalate]` — 分类变量分析（需 R 环境）
 - `uv run python run_smoke_jev.py [--offline|--all]` — 系统一（Jev）冒烟：中文样本 / 有序性 / 延迟 / token
-- `uv sync --extra system1` — 装系统一依赖（typesafe-sdk）；不装则自动降级为纯系统二
+- `uv sync --extra system1` — 装系统一依赖（typesafe-sdk）；不装则系统一不可用
 
 ## 验证快照（2026-08-24 实测）
-- pytest: **234 passed / 0 failed**（2026-08-24 基线 137 项 → 系统一接入新增 97 项）
+- pytest: **243 passed / 0 failed**（基线 137 → 系统一接入 +97 → 解耦 +9）
 - Jev 在线实测（jev-1.13.0）: 场景 3/3、字段码 16/16、有序性 5/5（见 [docs/SYSTEM1_JEV.md](docs/SYSTEM1_JEV.md)）
 
 ## 待办
 - [ ] docs/ 归属待厘清：早期说明（unified_framework_design / 分类变量有序判断）与新增 SYSTEM1_JEV 均非 ARCHITECTURE.md，按文档档位应进 .agents/notes/ 或模块手册
-- [ ] ARCHITECTURE.md 尚未描述系统一链路（内容在 [docs/SYSTEM1_JEV.md](docs/SYSTEM1_JEV.md)，边界待划）
-- [ ] 配置契约已变（API_KEY/API_URL/MODEL → SYSTEM2_*，新增 SYSTEM1_*），ARCHITECTURE.md 未同步
+- [ ] 未决：provisional（certainty ∈ [0.55,0.80)）是否应跳过长期缓存；现状是无条件写缓存，与 docs/SYSTEM1_JEV.md 早期表述不一致
 - [ ] [README.md](README.md) 文件结构清单与实际不符（列了不存在的 signalchain/run_categorical_analysis.R）
 
 ## 活跃坑
@@ -29,4 +30,6 @@
 - signalchain 是根目录包（非 src-layout），导入路径以 signalchain.* 开头（见 [signalchain/README.md](signalchain/README.md)）
 - config.py 的 SYSTEM2_MODEL 是 deepseek-flash，与 README/客户端默认的 deepseek-v4-flash 不一致（未擅自改）
 - 系统一接入后 signal_cache.json 会失效一次（引擎标识进了缓存哈希），首次运行重新决策是预期行为
+- 两套系统默认解耦：不传 escalate_to_system2 时 decider 拿不到系统二客户端；纯系统一下低置信字段落 X（不猜不改）
+- 决策记录的 verdict 与 escalated 是两件事：verdict=escalate 且 escalated=False 表示"该升级但没升级"
 - PyPI 上的 typesafe 是无关库；官方 SDK 是 typesafe-sdk（jev 包要求 Python>=3.14，本项目 3.12 装不了）

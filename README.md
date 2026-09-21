@@ -330,7 +330,16 @@ uv sync --extra system1          # 装官方 SDK（不装也能跑，只是没�
 uv run python run_clean.py medical --system1
 ```
 
-拿不准的字段会自动升级给系统二裁决，所以最坏情况退化成今天的行为，不会更差。
+两套系统默认互不依赖，三种跑法：
+
+```bash
+uv run python run_clean.py medical                      # 纯系统二（默认）
+uv run python run_clean.py medical --system1            # 纯系统一，不需要 DeepSeek Key
+uv run python run_clean.py medical --system1 --escalate # 串联：系统一拿不准时交系统二
+```
+
+纯系统一时，低置信字段落保守默认值（`X` = pass_through，即不猜、不改）；
+串联是显式选择，不传 `--escalate` 时系统二完全不参与。
 实测数据（中文脏数据准确率、延迟、token 成本、有序性判定）见
 [docs/SYSTEM1_JEV.md](docs/SYSTEM1_JEV.md) §13。
 
