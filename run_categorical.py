@@ -288,6 +288,17 @@ def main():
     print(f"  files: {len(results)}  |  called: {called_count}  |  cached: {cached_count}  |  time: {total_time:.2f}s  |  cost: {cost:.6f}")
     if usage.prompt_tokens:
         print(f"  tokens: in={usage.prompt_tokens}  out={usage.completion_tokens}")
+
+    # 两套系统的 token 分开口径：tokenizer 不同，混算没有意义
+    evaluator = getattr(classifier, "evaluator", None)
+    if evaluator is not None and (
+        evaluator.usage.prompt_tokens or evaluator.usage.completion_tokens
+    ):
+        print(
+            f"  system1 tokens: calls={evaluator.usage.total_calls}  "
+            f"in={evaluator.usage.prompt_tokens}  out={evaluator.usage.completion_tokens}  "
+            f"(TypeSafe 输出不计费)"
+        )
     print(BAR)
 
     # ---- 调用 R ----

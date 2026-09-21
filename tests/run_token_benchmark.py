@@ -59,22 +59,13 @@ def run_case(df: pd.DataFrame, thinking: bool) -> dict:
     )
     pipeline = SignalChainPipeline(ai_client=client, cache_file=":memory:")
 
-    # 先用 tokenizer 离线算输入 token
-    pipeline_for_prompts = SignalChainPipeline(
-        ai_client=DeepSeekV4Client(
-            api_key=SYSTEM2_API_KEY,
-            base_url=SYSTEM2_BASE_URL,
-            model=SYSTEM2_MODEL,
-            thinking=thinking,
-        ),
-        cache_file=":memory:",
-    )
-    pipeline_for_prompts.run(df)
-    input_tokens_offline = sum(count_tokens(p) for p in pipeline_for_prompts.prompt_log)
-
     t0 = time.time()
-    result, report = pipeline.run(df)
+    result, _ = pipeline.run(df)
     elapsed = time.time() - t0
+
+    # run() 自己会填 prompt_log，不必再跑一遍
+    # （此前多跑一次只为拿 prompt，代价是每个用例多 2 次真实 API 调用）
+    input_tokens_offline = sum(count_tokens(p) for p in pipeline.prompt_log)
 
     u = client.usage
     return {
