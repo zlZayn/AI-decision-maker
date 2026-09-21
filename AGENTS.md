@@ -19,10 +19,11 @@
 ## 验证快照（2026-08-24 实测）
 - pytest: **243 passed / 0 failed**（基线 137 → 系统一接入 +97 → 解耦 +9）
 - Jev 在线实测（jev-1.13.0）: 场景 3/3、字段码 16/16、有序性 5/5（见 [docs/SYSTEM1_JEV.md](docs/SYSTEM1_JEV.md)）
+- 纯系统一 vs 纯系统二 对照（2026-09-21）: 清洗链路 3 文件 SHA256 逐字节一致、操作链 18 行一致；分类链路 5 个 JSON 一致
+- 定位: demo，不上升生产级（见 [.agents/notes/decision-system1-jev-integration-2026-09-21.md](.agents/notes/decision-system1-jev-integration-2026-09-21.md)）
 
 ## 待办
 - [ ] docs/ 归属待厘清：早期说明（unified_framework_design / 分类变量有序判断）与新增 SYSTEM1_JEV 均非 ARCHITECTURE.md，按文档档位应进 .agents/notes/ 或模块手册
-- [ ] 未决：provisional（certainty ∈ [0.55,0.80)）是否应跳过长期缓存；现状是无条件写缓存，与 docs/SYSTEM1_JEV.md 早期表述不一致
 - [ ] [README.md](README.md) 文件结构清单与实际不符（列了不存在的 signalchain/run_categorical_analysis.R）
 
 ## 活跃坑
@@ -33,3 +34,5 @@
 - 两套系统默认解耦：不传 escalate_to_system2 时 decider 拿不到系统二客户端；纯系统一下低置信字段落 X（不猜不改）
 - 决策记录的 verdict 与 escalated 是两件事：verdict=escalate 且 escalated=False 表示"该升级但没升级"
 - PyPI 上的 typesafe 是无关库；官方 SDK 是 typesafe-sdk（jev 包要求 Python>=3.14，本项目 3.12 装不了）
+- provisional 缓存按"全部写入"处理（demo 要可重复性，不要长期正确性），与 [docs/SYSTEM1_JEV.md](docs/SYSTEM1_JEV.md) 早期表述不一致处以实现为准
+- 两套引擎交替运行会互相冲掉对方缓存（_code_hash 全局比对，不匹配即整体丢弃），对照跑时要留意缓存状态
