@@ -36,3 +36,5 @@
 - PyPI 上的 typesafe 是无关库；官方 SDK 是 typesafe-sdk（jev 包要求 Python>=3.14，本项目 3.12 装不了）
 - provisional 缓存按"全部写入"处理（demo 要可重复性，不要长期正确性），与 [signalchain/SYSTEM1.md](signalchain/SYSTEM1.md) 早期表述不一致处以实现为准
 - 缓存按引擎分区（schema 2）：切引擎只失效对应命名空间；旧格式文件会在首次加载时整体作废一次
+- 已知边界（官方明示，未修改）：certainty() 把 noul 与 choice 归一到同一尺度并共用阈值，官方明确两者不可比；大 state 会降准确度，但本项目场景判断依赖字段清单（见 [signalchain/SYSTEM1.md](signalchain/SYSTEM1.md)）
+- Jev 单价 $0.042/M 未能在公开文档核实，以 console.typesafe.ai 为准
