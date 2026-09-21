@@ -23,6 +23,7 @@
 - pytest: **250 passed / 0 failed**（基线 137 → 系统一接入 +97 → 解耦 +9 → 缓存分区 +7）
 - Jev 在线实测（jev-1.13.0）: 场景 3/3、字段码 16/16、有序性 5/5（见 [signalchain/SYSTEM1.md](signalchain/SYSTEM1.md)）
 - 纯系统一 vs 纯系统二 对照（2026-09-21）: 清洗链路 3 文件 SHA256 逐字节一致、操作链 18 行一致；分类链路 5/6 一致（data_B_type.json 系统二多判了 id，系统一更合理；report.json 不受影响）；两引擎各自可复现
+- token 口径（2026-09-21）: 计费口径（API 自报）清洗 6.6× / 分类 12.7×；"同口径 4.0× / 13.3×"因本地 tokenizer 中文计 0 已作废
 - 定位: demo，不上升生产级（见 [.agents/notes/decision-system1-jev-integration-2026-09-21.md](.agents/notes/decision-system1-jev-integration-2026-09-21.md)）
 - 缓存实测（2026-09-21，清空缓存后跑两轮）: 清洗链路纯系统一 cold 2.79s / 3 次 Jev → hit 0.31s / **0 次**；纯系统二 cold 6.69s / 6 次 → hit 1.53s / **0 次**；两个命名空间并存且互相切换后仍命中（分区未互相冲掉）；分类链路走文件级缓存（`*_type.json` 按 mtime），4/4 命中
 
@@ -40,3 +41,4 @@
 - 缓存按引擎分区（schema 2）：切引擎只失效对应命名空间；旧格式文件会在首次加载时整体作废一次
 - 已知边界（官方明示，未修改）：certainty() 把 noul 与 choice 归一到同一尺度并共用阈值，官方明确两者不可比；大 state 会降准确度，但本项目场景判断依赖字段清单（见 [signalchain/SYSTEM1.md](signalchain/SYSTEM1.md)）
 - Jev 单价 $0.042/M 未能在公开文档核实，以 console.typesafe.ai 为准
+- ⚠️ signalchain/tokenizer.py 的本地 tokenizer **对中文返回 0 token**（CJK 词条为 0、unk_id 为 None、byte_fallback 为 false）；官方 `deepseek_v4_tokenizer/` 目录行为相同。**不可用于跨引擎 token 比较**，跨引擎一律用 API 自报数（详见 [signalchain/SYSTEM1.md](signalchain/SYSTEM1.md) §13.4.1）

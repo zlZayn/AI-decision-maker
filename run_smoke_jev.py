@@ -101,9 +101,10 @@ def _fmt_probs(probabilities: dict[str, float], top: int = 3) -> str:
 def _evaluate_with_yardstick(evaluator: Evaluator, state: Any, questions: dict[str, Any]):
     """调用引擎，同时用本地 DeepSeek tokenizer 量一遍请求体
 
-    引擎自己回报的 input_tokens 用的是它自家的 tokenizer，与系统二的 token 数不可比。
-    这里把请求体 dump 成文本、用同一把尺子（signalchain.tokenizer.count_tokens）量一次，
-    两个引擎之间才能做同口径对比。
+    ⚠️ 返回的 deepseek_token_count 只能当 ASCII 部分的诊断参考，**不能用于跨引擎比较**：
+    本地 tokenizer 对中文返回 0 token（见 signalchain/tokenizer.py 的说明与
+    signalchain/SYSTEM1.md §13.4.1），中文占比越高低估越严重。
+    跨引擎比较一律用引擎 API 自报的 input_tokens。
 
     返回 (response, deepseek_token_count)。
     """
@@ -243,7 +244,7 @@ def check_1_connectivity(evaluator: Evaluator) -> bool:
             f"certainty={noul_certainty(probability):.4f}"
         )
     print(f"  model={response.model}  tokens: in={response.input_tokens} out={response.output_tokens}  {elapsed:.2f}s")
-    print(f"  同口径（DeepSeek tokenizer）请求体 = {ds_tokens} tokens")
+    print(f"  本地 tokenizer 诊断值 = {ds_tokens} tokens（中文计 0，不可用于跨引擎比较）")
     print("  语义校验：urgent 应显著高于 billing（urgent 句明确要求 ASAP，billing 句谈的是故障）")
     urgent = response.answers.get("urgent")
     billing = response.answers.get("billing")
@@ -270,9 +271,8 @@ def check_2_dataset(evaluator: Evaluator, filename: str) -> None:
 
     print(f"  请求：1 次  |  问题数：{len(questions)}（1 场景 + {profile.field_count} 字段）"
           f"  |  {elapsed:.2f}s  |  tokens in={response.input_tokens} out={response.output_tokens}")
-    ratio = response.input_tokens / max(1, ds_tokens)
-    print(f"  同口径（DeepSeek tokenizer）请求体 = {ds_tokens} tokens"
-          f"  |  引擎自家口径 = {response.input_tokens}  →  两把尺子差 {ratio:.2f}×")
+    print(f"  本地 tokenizer 诊断值 = {ds_tokens} tokens（中文计 0，不可用于跨引擎比较）")
+    print(f"  引擎自报口径（可比数） = {response.input_tokens} tokens")
 
     scene_answer = response.answers.get(SCENE_QUESTION_ID)
     if scene_answer is not None:
@@ -310,7 +310,7 @@ def check_3_ordinality(evaluator: Evaluator) -> None:
     print(f"  请求：1 次  |  问题数：{len(questions)}"
           f"（{len(ORDINAL_CASES)} 个有序性 noul + 逐值 score）  |  {elapsed:.2f}s  |  "
           f"tokens in={response.input_tokens} out={response.output_tokens}")
-    print(f"  同口径（DeepSeek tokenizer）请求体 = {ds_tokens} tokens\n")
+    print(f"  本地 tokenizer 诊断值 = {ds_tokens} tokens（中文计 0，不可用于跨引擎比较）\n")
 
     print(f"  {'变量':<14s} {'P(有序)':>8s} {'cert':>6s} {'离散度':>7s} {'档位确定度':>10s}  判定  顺序")
     print(f"  {'-' * 14} {'-' * 8} {'-' * 6} {'-' * 7} {'-' * 10}  {'-' * 6} {'-' * 40}")
@@ -395,7 +395,7 @@ def check_4_categorical(evaluator: Evaluator, filename: str) -> None:
     elapsed = time.time() - started
     print(f"  请求：1 次  |  问题数：{len(questions)}  |  {elapsed:.2f}s  |  "
           f"tokens in={response.input_tokens} out={response.output_tokens}")
-    print(f"  同口径（DeepSeek tokenizer）请求体 = {ds_tokens} tokens\n")
+    print(f"  本地 tokenizer 诊断值 = {ds_tokens} tokens（中文计 0，不可用于跨引擎比较）\n")
 
     print(f"  {'字段':<18s} {'P(是分类变量)':>14s} {'certainty':>10s}  判定")
     print(f"  {'-' * 18} {'-' * 14} {'-' * 10}  {'-' * 10}")

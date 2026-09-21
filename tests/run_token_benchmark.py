@@ -65,6 +65,7 @@ def run_case(df: pd.DataFrame, thinking: bool) -> dict:
 
     # run() 自己会填 prompt_log，不必再跑一遍
     # （此前多跑一次只为拿 prompt，代价是每个用例多 2 次真实 API 调用）
+    # ⚠️ 本地 tokenizer 对中文返回 0 token，这个估算严重低估，只作粗排参考
     input_tokens_offline = sum(count_tokens(p) for p in pipeline.prompt_log)
 
     u = client.usage
@@ -130,7 +131,7 @@ def main():
         print(
             f"  {'合计':<16s} input={total_input_api:>4d} output={total_output:>4d} reasoning={total_reasoning:>4d} {total_elapsed:.2f}s"
         )
-        print(f"  离线 input 估算: {total_input_offline} tokens")
+        print(f"  离线 input 估算（本地 tokenizer，中文计 0，严重低估，仅作粗排参考）: {total_input_offline}")
         print(f"  费用: {total_cost:.6f} 元")
 
         total[mode] = {
