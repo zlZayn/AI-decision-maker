@@ -24,6 +24,7 @@
 - Jev 在线实测（jev-1.13.0）: 场景 3/3、字段码 16/16、有序性 5/5（见 [signalchain/SYSTEM1.md](signalchain/SYSTEM1.md)）
 - 纯系统一 vs 纯系统二 对照（2026-09-21）: 清洗链路 3 文件 SHA256 逐字节一致、操作链 18 行一致；分类链路 5/6 一致（data_B_type.json 系统二多判了 id，系统一更合理；report.json 不受影响）；两引擎各自可复现
 - 定位: demo，不上升生产级（见 [.agents/notes/decision-system1-jev-integration-2026-09-21.md](.agents/notes/decision-system1-jev-integration-2026-09-21.md)）
+- 缓存实测（2026-09-21，清空缓存后跑两轮）: 清洗链路纯系统一 cold 2.79s / 3 次 Jev → hit 0.31s / **0 次**；纯系统二 cold 6.69s / 6 次 → hit 1.53s / **0 次**；两个命名空间并存且互相切换后仍命中（分区未互相冲掉）；分类链路走文件级缓存（`*_type.json` 按 mtime），4/4 命中
 
 ## 待办
 - （暂无）
