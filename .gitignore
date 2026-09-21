@@ -8,3 +8,4 @@ signal_cache.json
 data/clean/
 config.py
 .venv/
+.DS_Store
