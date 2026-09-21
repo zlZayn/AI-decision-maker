@@ -11,7 +11,6 @@
 - cache.py：指纹缓存（signal_cache.json），被 pipeline 依赖
 - models.py：信号码/场景码常量，被 stage* 依赖
 - knowledge.py：字段语义知识库，被 operations/* 依赖
-- tokenizer.py：count_tokens 离线 Token 估算，被 run_token_benchmark 依赖
 - stage0_profile.py → stage5_execute.py：五阶段清洗链（profile→scene→router→semantic→assemble→execute）
 - operations/：base.py 基类 + registry.py 注册表 + 12 个字段操作（文件清单与信号码对应见 [operations/README.md](operations/README.md)）
 - run_categorical_analysis.R：分类链路统计脚本，需 R 环境（见 [../README.md](../README.md)）

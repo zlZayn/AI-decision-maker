@@ -41,4 +41,4 @@
 - 缓存按引擎分区（schema 2）：切引擎只失效对应命名空间；旧格式文件会在首次加载时整体作废一次
 - 已知边界（官方明示，未修改）：certainty() 把 noul 与 choice 归一到同一尺度并共用阈值，官方明确两者不可比；大 state 会降准确度，但本项目场景判断依赖字段清单（见 [signalchain/SYSTEM1.md](signalchain/SYSTEM1.md)）
 - Jev 单价 $0.042/M 未能在公开文档核实，以 console.typesafe.ai 为准
-- ⚠️ signalchain/tokenizer.py 的本地 tokenizer **对中文返回 0 token**（CJK 词条为 0、unk_id 为 None、byte_fallback 为 false）；官方 `deepseek_v4_tokenizer/` 目录行为相同。**不可用于跨引擎 token 比较**，跨引擎一律用 API 自报数（详见 [signalchain/SYSTEM1.md](signalchain/SYSTEM1.md) §13.4.1）
+- 本地 tokenizer 资产已移除（`tests/deepseek_tokenizer/` + `signalchain/tokenizer.py`）：它对中文返回 0 token，且即便修好也是第三方尺子、非任何一方计费口径。**token 比较一律用 API 自报数**（见 [signalchain/SYSTEM1.md](signalchain/SYSTEM1.md) §13.4.1）

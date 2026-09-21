@@ -39,7 +39,6 @@ from signalchain.fastpath import (
     scene_criteria,
 )
 from signalchain.stage0_profile import extract_profile
-from signalchain.tokenizer import count_tokens
 from signalchain.categorical_system1 import (
     build_ordinal_questions,
     level_question_id,
@@ -96,23 +95,6 @@ def _fmt_probs(probabilities: dict[str, float], top: int = 3) -> str:
         return "-"
     ranked = sorted(probabilities.items(), key=lambda kv: -kv[1])[:top]
     return "  ".join(f"{key}={value:.3f}" for key, value in ranked)
-
-
-def _evaluate_with_yardstick(evaluator: Evaluator, state: Any, questions: dict[str, Any]):
-    """调用引擎，同时用本地 DeepSeek tokenizer 量一遍请求体
-
-    ⚠️ 返回的 deepseek_token_count 只能当 ASCII 部分的诊断参考，**不能用于跨引擎比较**：
-    本地 tokenizer 对中文返回 0 token（见 signalchain/tokenizer.py 的说明与
-    signalchain/SYSTEM1.md §13.4.1），中文占比越高低估越严重。
-    跨引擎比较一律用引擎 API 自报的 input_tokens。
-
-    返回 (response, deepseek_token_count)。
-    """
-    body = json.dumps(
-        {"state": state, "model": "jev-latest", "questions": questions}, ensure_ascii=False
-    )
-    deepseek_tokens = count_tokens(body)
-    return evaluator.evaluate(state, questions), deepseek_tokens
 
 
 def _load_config() -> tuple[str, str, str]:
@@ -230,7 +212,7 @@ def check_1_connectivity(evaluator: Evaluator) -> bool:
         ),
     }
     started = time.time()
-    response, ds_tokens = _evaluate_with_yardstick(evaluator, state, questions)
+    response = evaluator.evaluate(state, questions)
     elapsed = time.time() - started
 
     for question_id in questions:
@@ -244,7 +226,6 @@ def check_1_connectivity(evaluator: Evaluator) -> bool:
             f"certainty={noul_certainty(probability):.4f}"
         )
     print(f"  model={response.model}  tokens: in={response.input_tokens} out={response.output_tokens}  {elapsed:.2f}s")
-    print(f"  本地 tokenizer 诊断值 = {ds_tokens} tokens（中文计 0，不可用于跨引擎比较）")
     print("  语义校验：urgent 应显著高于 billing（urgent 句明确要求 ASAP，billing 句谈的是故障）")
     urgent = response.answers.get("urgent")
     billing = response.answers.get("billing")
@@ -266,13 +247,13 @@ def check_2_dataset(evaluator: Evaluator, filename: str) -> None:
     questions = build_questions(profile, include_scene=True)
 
     started = time.time()
-    response, ds_tokens = _evaluate_with_yardstick(evaluator, state, questions)
+    response = evaluator.evaluate(state, questions)
     elapsed = time.time() - started
 
     print(f"  请求：1 次  |  问题数：{len(questions)}（1 场景 + {profile.field_count} 字段）"
-          f"  |  {elapsed:.2f}s  |  tokens in={response.input_tokens} out={response.output_tokens}")
-    print(f"  本地 tokenizer 诊断值 = {ds_tokens} tokens（中文计 0，不可用于跨引擎比较）")
-    print(f"  引擎自报口径（可比数） = {response.input_tokens} tokens")
+          f"  |  {elapsed:.2f}s")
+    print(f"  输入 token（引擎自报，唯一可比口径） = {response.input_tokens}"
+          f"  |  输出 = {response.output_tokens}（不计费）")
 
     scene_answer = response.answers.get(SCENE_QUESTION_ID)
     if scene_answer is not None:
@@ -305,12 +286,11 @@ def check_3_ordinality(evaluator: Evaluator) -> None:
     questions = build_ordinal_questions(list(ORDINAL_CASES.keys()), ORDINAL_CASES)
 
     started = time.time()
-    response, ds_tokens = _evaluate_with_yardstick(evaluator, state, questions)
+    response = evaluator.evaluate(state, questions)
     elapsed = time.time() - started
     print(f"  请求：1 次  |  问题数：{len(questions)}"
           f"（{len(ORDINAL_CASES)} 个有序性 noul + 逐值 score）  |  {elapsed:.2f}s  |  "
           f"tokens in={response.input_tokens} out={response.output_tokens}")
-    print(f"  本地 tokenizer 诊断值 = {ds_tokens} tokens（中文计 0，不可用于跨引擎比较）\n")
 
     print(f"  {'变量':<14s} {'P(有序)':>8s} {'cert':>6s} {'离散度':>7s} {'档位确定度':>10s}  判定  顺序")
     print(f"  {'-' * 14} {'-' * 8} {'-' * 6} {'-' * 7} {'-' * 10}  {'-' * 6} {'-' * 40}")
@@ -391,11 +371,10 @@ def check_4_categorical(evaluator: Evaluator, filename: str) -> None:
         )
 
     started = time.time()
-    response, ds_tokens = _evaluate_with_yardstick(evaluator, state, questions)
+    response = evaluator.evaluate(state, questions)
     elapsed = time.time() - started
     print(f"  请求：1 次  |  问题数：{len(questions)}  |  {elapsed:.2f}s  |  "
           f"tokens in={response.input_tokens} out={response.output_tokens}")
-    print(f"  本地 tokenizer 诊断值 = {ds_tokens} tokens（中文计 0，不可用于跨引擎比较）\n")
 
     print(f"  {'字段':<18s} {'P(是分类变量)':>14s} {'certainty':>10s}  判定")
     print(f"  {'-' * 18} {'-' * 14} {'-' * 10}  {'-' * 10}")

@@ -539,12 +539,9 @@ class GatePolicy:
 
 > **已撤下的支线（2026-09-21）**
 >
-> 曾用本地 `signalchain/tokenizer.count_tokens` 做"同口径"测量，得出 4.0× / 13.3×。
-> 该 tokenizer **对中文返回 0 token**：`vocab` 128000 条里 CJK 词条为 0、
-> `unk_id` 为 None、`byte_fallback` 为 false → 中文被静默丢弃；中文占比越高、低估越严重。
-> 官方完整词表目录 `tests/deepseek_tokenizer/deepseek_v4_tokenizer/` 行为**完全相同**，
-> 替换词表不能解决。
-> **因此同口径数字全部作废**，token 与成本对比一律以 API 自报数为准，见上两表。
+> 曾用本地 tokenizer 做"同口径"测量（得出 4.0× / 13.3×）。该 tokenizer 对中文返回 0 token，
+> 中文占比越高低估越严重，数字不可用；**同口径数字全部作废，相关资产已移除**。
+> token 与成本对比一律以 API 自报数为准，见上两表。
 
 **分类链路的 12.7× 是结构性的，单独立条**：
 
@@ -644,7 +641,23 @@ class GatePolicy:
 
 单价与汇率的完整声明见 §13.4.2 两张成本表下方；表内数字同为 2026-09-21 口径。
 
-#### 13.4.4 延迟与失败模式
+#### 13.4.4 如何验证 token 降幅
+
+任何压 token 的改动，按下面这条路验证：
+
+```bash
+uv run python run_smoke_jev.py --all     # 改动前
+# ...改代码...
+uv run python run_smoke_jev.py --all     # 改动后，对比 Jev API 自报的 input_tokens
+```
+
+- **只比 `input_tokens`（引擎自报）**，这是唯一可比口径。不要用本地估算，相关资产已移除。
+- **不需要 `--no-cache`**：该脚本直接调 `evaluator.evaluate()`，不经过 `SignalCache`，
+  每次都发真实请求；它手动解析 `argv`，未知参数静默忽略。
+- `input_tokens` 是纯计数，同一 prompt 重复跑数字一致，所以前后对比是干净的。
+- 同时确认**准确率不退化**：场景 3/3、字段码 16/16、有序性 5/5、顺序不变。
+
+#### 13.4.5 延迟与失败模式
 
 | 维度 | 系统二 | 系统一 | 判断 |
 | --- | --- | --- | --- |

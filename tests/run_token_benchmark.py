@@ -23,7 +23,6 @@ if sys.platform == "win32":
 import pandas as pd
 from signalchain.pipeline import SignalChainPipeline
 from signalchain.ai_client import DeepSeekV4Client
-from signalchain.tokenizer import count_tokens
 from config import SYSTEM2_API_KEY, SYSTEM2_BASE_URL, SYSTEM2_MODEL
 
 
@@ -63,14 +62,10 @@ def run_case(df: pd.DataFrame, thinking: bool) -> dict:
     result, _ = pipeline.run(df)
     elapsed = time.time() - t0
 
-    # run() 自己会填 prompt_log，不必再跑一遍
-    # （此前多跑一次只为拿 prompt，代价是每个用例多 2 次真实 API 调用）
-    # ⚠️ 本地 tokenizer 对中文返回 0 token，这个估算严重低估，只作粗排参考
-    input_tokens_offline = sum(count_tokens(p) for p in pipeline.prompt_log)
-
+    # 不再做"离线 token 估算"：原本依赖的本地 tokenizer 对中文返回 0，
+    # 已随 tests/deepseek_tokenizer/ 一并移除。token 一律用 API 自报数。
     u = client.usage
     return {
-        "input_offline": input_tokens_offline,
         "input_api": u.prompt_tokens,
         "output": u.completion_tokens,
         "reasoning": u.reasoning_tokens,
@@ -102,7 +97,6 @@ def main():
     for thinking in [True, False]:
         mode = "thinking" if thinking else "no_thinking"
         label = "思考模式 ON " if thinking else "思考模式 OFF"
-        total_input_offline = 0
         total_input_api = 0
         total_output = 0
         total_reasoning = 0
@@ -114,7 +108,6 @@ def main():
 
         for name, df in test_cases.items():
             r = run_case(df, thinking)
-            total_input_offline += r["input_offline"]
             total_input_api += r["input_api"]
             total_output += r["output"]
             total_reasoning += r["reasoning"]
@@ -131,7 +124,6 @@ def main():
         print(
             f"  {'合计':<16s} input={total_input_api:>4d} output={total_output:>4d} reasoning={total_reasoning:>4d} {total_elapsed:.2f}s"
         )
-        print(f"  离线 input 估算（本地 tokenizer，中文计 0，严重低估，仅作粗排参考）: {total_input_offline}")
         print(f"  费用: {total_cost:.6f} 元")
 
         total[mode] = {
