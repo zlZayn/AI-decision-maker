@@ -1,4 +1,4 @@
-# System 1 接入设计 — 用 Jev 给 SignalChain 装上"直觉"
+# 系统一（Jev） — 接入设计与实测
 
 > 状态：设计 + 参考实现 + **已在 jev-1.13.0 上实测**（见 §13）
 > 结论先行：**能加，而且加完之后代码是净减少的**。但 Jev 不是"更快的 LLM"，它是另一类引擎，只能在满足 4 个边界条件的判断上替换系统二。
@@ -181,7 +181,7 @@ confidence = (n × peak − 1) / (n − 1)      n = 选项数，peak = 最大概
 | `validate_categorical_output`（逗号归一 + 交集） | ~17 | 每个字段一个问题，"无"变成"概率低于阈值" |
 | `validate_ordinal_output`（拆 3 种分隔符 + 中文标点 + 交集） | ~35 | 顺序由分数排序产生，不存在可解析的文本 |
 
-原来的校验层是**"不信任 AI 输出"**（[docs/ARCHITECTURE.md](ARCHITECTURE.md) 原话），设计上是对的；
+原来的校验层是**"不信任 AI 输出"**（[docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) 原话），设计上是对的；
 换上 Jev 之后，**约束从"事后校验"前移为"请求即类型"**——
 `criteria` 就是那个类型，模型返回的值**在结构上不可能越界**（官方原话：
 "Every answer is constrained to the options you supplied... Your code never has to recover a value from generated prose"）。

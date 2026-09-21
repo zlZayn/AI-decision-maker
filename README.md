@@ -118,109 +118,21 @@ CSV 输入后，经过三层处理：
 
 ---
 
-## 文件结构
+## 目录约定
 
-```text
-AI-decision-maker/
-├── data/
-│   ├── categorical/
-│   │   ├── input/
-│   │   │   ├── data_A.csv
-│   │   │   ├── data_B.csv
-│   │   │   ├── data_C.csv
-│   │   │   └── data_D.csv
-│   │   └── output/
-│   │       ├── data_A_type.json
-│   │       ├── data_B_type.json
-│   │       ├── data_C_type.json
-│   │       ├── data_D_type.json
-│   │       ├── report.json
-│   │       └── report.xlsx
-│   ├── clean/
-│   │   ├── finance_clean.csv
-│   │   ├── medical_clean.csv
-│   │   └── user_clean.csv
-│   └── dirty/
-│       ├── finance.csv
-│       ├── medical.csv
-│       └── user.csv
-├── docs/
-│   ├── ARCHITECTURE.md
-│   ├── SYSTEM1_JEV.md
-│   ├── unified_framework_design.md
-│   └── 分类变量有序判断.md
-├── examples/
-│   └── demo.py
-├── signalchain/
-│   ├── operations/
-│   │   ├── __init__.py
-│   │   ├── age.py
-│   │   ├── base.py
-│   │   ├── coordinates.py
-│   │   ├── currency.py
-│   │   ├── datetime.py
-│   │   ├── department.py
-│   │   ├── drug_name.py
-│   │   ├── email.py
-│   │   ├── gender.py
-│   │   ├── icd10.py
-│   │   ├── log_level.py
-│   │   ├── pass_through.py
-│   │   ├── phone.py
-│   │   └── registry.py
-│   ├── __init__.py
-│   ├── ai_client.py
-│   ├── cache.py
-│   ├── categorical.py
-│   ├── categorical_system1.py
-│   ├── fastpath.py
-│   ├── knowledge.py
-│   ├── models.py
-│   ├── pipeline.py
-│   ├── system1.py
-│   ├── run_categorical_analysis.R
-│   ├── stage0_profile.py
-│   ├── stage1_scene.py
-│   ├── stage2_router.py
-│   ├── stage3_semantic.py
-│   ├── stage4_assemble.py
-│   ├── stage5_execute.py
-│   └── tokenizer.py
-├── tests/
-│   ├── __init__.py
-│   ├── deepseek_tokenizer/
-│   ├── run_all.py
-│   ├── run_e2e_categorical.py
-│   ├── run_e2e_pipeline.py
-│   ├── run_token_benchmark.py
-│   ├── run_unit.py
-│   ├── test_cache.py
-│   ├── test_categorical.py
-│   ├── test_categorical_system1.py
-│   ├── test_fastpath.py
-│   ├── test_operations.py
-│   ├── test_pipeline.py
-│   ├── test_stage0.py
-│   ├── test_system1.py
-│   ├── test_stage1.py
-│   ├── test_stage2.py
-│   ├── test_stage3.py
-│   ├── test_stage4.py
-│   └── test_stage5.py
-├── .gitignore
-├── LICENSE
-├── PROJECT_INTRO.md
-├── README.md
-├── .python-version
-├── config.example.py
-├── config.py
-├── pyproject.toml
-├── run_categorical.py
-├── run_clean.py
-├── run_smoke_jev.py
-├── signal_cache.json
-└── uv.lock
-```
+| 目录 | 用途 |
+| --- | --- |
+| `data/dirty/` | 清洗输入：待处理的脏 CSV |
+| `data/clean/` | 清洗输出：`*_clean.csv` |
+| `data/categorical/input/` | 分类变量分析的输入 |
+| `data/categorical/output/` | 分类结果 `*_type.json`，以及 R 报告 `report.json` / `report.xlsx` |
+| `signalchain/` | 核心实现（清洗链路 + 分类链路 + 字段操作） |
+| `tests/` | 单元测试与手动脚本（e2e / 基准） |
+| `docs/` | 架构文档 |
+| `.agents/notes/` | 决策记录 |
+
+文件级索引（哪个文件做什么、改完要跑哪些测试）→
+[signalchain/README.md](signalchain/README.md) · [tests/README.md](tests/README.md)
 
 ---
 
@@ -342,14 +254,10 @@ uv run python run_clean.py medical --system1 --escalate # 串联：系统一拿�
 纯系统一时，低置信字段落保守默认值（`X` = pass_through，即不猜、不改）；
 串联是显式选择，不传 `--escalate` 时系统二完全不参与。
 实测数据（中文脏数据准确率、延迟、token 成本、有序性判定）见
-[docs/SYSTEM1_JEV.md](docs/SYSTEM1_JEV.md) §13。
+[signalchain/SYSTEM1.md](signalchain/SYSTEM1.md) §13。
 
 ---
 
 ## 开发者文档
 
-- 维护索引（规则与仪表盘）→ [AGENTS.md](AGENTS.md)
-- 架构设计 → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- 项目简介 → [PROJECT_INTRO.md](PROJECT_INTRO.md)
-- 核心模块手册 → [signalchain/README.md](signalchain/README.md)
-- 测试手册 → [tests/README.md](tests/README.md)
+维护索引、命令速查、待办与活跃坑，以及全部文档地图 → [AGENTS.md](AGENTS.md)

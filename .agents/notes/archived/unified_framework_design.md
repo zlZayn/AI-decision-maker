@@ -1,5 +1,9 @@
 # SignalChain 统一框架设计文档（初步计划，已过期）
 
+> 已归档（2026-09-21）：原在 docs/ 下，不属架构文档档位。
+> 内容已由 [../../../docs/ARCHITECTURE.md](../../../docs/ARCHITECTURE.md) 与
+> [../../../signalchain/README.md](../../../signalchain/README.md) 取代，此处仅作历史留存。
+
 > AI 信号链决策框架：AI 只传递极简信号码，本地负责查表执行
 > 核心目标：单次运行总 Token < 100，缓存命中时零 Token
 

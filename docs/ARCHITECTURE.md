@@ -33,7 +33,7 @@ SignalChain 的核心设计思路：**AI 负责"认知"，本地负责"执行"**
 - 只传系统 1 引擎：全部判断由系统 1 完成，低置信项落保守默认值（字段 `X`、有序性判"无序"），不调用系统 2。
 - 两者都传且 `escalate_to_system2=True`：系统 1 低置信时升级给系统 2。串联是显式选择，默认关闭。
 
-链路细节、门控阈值与实测数据见 [SYSTEM1_JEV.md](SYSTEM1_JEV.md)。
+链路细节、门控阈值与实测数据见 [../signalchain/SYSTEM1.md](../signalchain/SYSTEM1.md)。
 
 ---
 
