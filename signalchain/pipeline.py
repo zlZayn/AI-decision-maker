@@ -6,7 +6,7 @@ import logging
 
 import pandas as pd
 
-from signalchain.models import CacheEntry
+from signalchain.models import CacheEntry, DecisionRecord
 from signalchain.cache import SignalCache
 from signalchain.stage0_profile import extract_profile, generate_fingerprint
 from signalchain.stage1_scene import build_scene_prompt, validate_scene_code
@@ -19,6 +19,8 @@ from signalchain.stage3_semantic import validate_field_signal_sequence
 from signalchain.stage4_assemble import assemble_operations
 from signalchain.stage5_execute import execute_pipeline, QualityReport
 from signalchain.ai_client import AIClient, MockAIClient
+from signalchain.fastpath import System1Decider
+from signalchain.system1 import Evaluator, GatePolicy, System1Error
 
 logger = logging.getLogger(__name__)
 
@@ -32,17 +34,41 @@ class SignalChainPipeline:
     Stage 3: AI 字段语义识别 → 字段信号序列
     Stage 4: 字段名标准化 + 操作链组装
     Stage 5: 本地执行
+
+    可选系统一快通道（evaluator 不为 None 时启用）：
+    把 Stage 1 + Stage 3 压成一次 Jev 请求，低置信字段自动升级给系统二。
+    evaluator 为 None 时（默认）整条系统一路径不存在，行为与改动前完全一致。
     """
 
     def __init__(
         self,
         ai_client: AIClient | None = None,
         cache_file: str = "signal_cache.json",
+        evaluator: Evaluator | None = None,
+        gate_policy: GatePolicy | None = None,
+        verbose_criteria: bool = False,
     ):
         self.ai = ai_client or MockAIClient()
-        self.cache = SignalCache(cache_file)
+        self.evaluator = evaluator
+        self.gate_policy = gate_policy or GatePolicy()
+        self.decider = (
+            System1Decider(
+                evaluator,
+                fallback_client=self.ai,
+                policy=self.gate_policy,
+                verbose_criteria=verbose_criteria,
+            )
+            if evaluator is not None
+            else None
+        )
+        self.cache = SignalCache(cache_file, engine_id=self._engine_id())
         self.routing = ROUTING_TABLE
         self.prompt_log: list[str] = []  # 捕获发送给 AI 的 prompt
+        self.decisions: list[DecisionRecord] = []  # 决策日志（系统一才有内容）
+
+    def _engine_id(self) -> str:
+        """决策引擎标识，参与缓存哈希 —— 换引擎必须让旧缓存失效"""
+        return self.evaluator.engine_id if self.evaluator is not None else "system2"
 
     def run(self, df: pd.DataFrame) -> tuple[pd.DataFrame, QualityReport]:
         # ---- Stage 0: 元信息提取 ----
@@ -53,34 +79,90 @@ class SignalChainPipeline:
         # ---- 缓存查找 ----
         cached = self.cache.get(fingerprint)
         if cached is not None:
+            self.decisions = self._cache_decisions(cached)
             return self._from_cache(df, profile, cached)
             # ^ 保证从缓存出来也走了标准化+分列
 
         logger.info("Cache miss, proceeding to AI stages")
 
-        # ---- Stage 1: 场景识别 ----
-        scene_prompt = build_scene_prompt(profile)
-        self.prompt_log.append(scene_prompt)
-        raw_scene = self.ai.call(scene_prompt)
-        scene_code = validate_scene_code(raw_scene)
-        logger.info(f"Stage 1: scene_code={scene_code} (raw={raw_scene!r})")
+        # ---- 系统一快通道（可选）：一次请求定场景 + 字段，低置信自动升级系统二 ----
+        fast = self._try_system1(profile)
+        if fast is not None:
+            scene_code = fast.scene_code
+            signal_sequence = fast.signal_sequence
+            self.decisions = list(fast.decisions)
+            scene_certainty = fast.scene_certainty
+            decided_by = fast.engine
+            logger.info(
+                f"系统一快通道：scene_code={scene_code} "
+                f"signal_sequence={signal_sequence} "
+                f"escalated={fast.escalated_fields or '无'}"
+            )
+        else:
+            decided_by = "system2"
+            scene_certainty = 0.0
+            # ---- Stage 1: 场景识别 ----
+            scene_prompt = build_scene_prompt(profile)
+            self.prompt_log.append(scene_prompt)
+            raw_scene = self.ai.call(scene_prompt)
+            scene_code = validate_scene_code(raw_scene)
+            logger.info(f"Stage 1: scene_code={scene_code} (raw={raw_scene!r})")
 
-        # ---- Stage 2: 路由 + Prompt 组装 ----
+            # ---- Stage 2: 路由 + Prompt 组装 ----
+            scene_config = self.routing.get(scene_code, self.routing["S0"])
+            field_prompt = build_field_semantic_prompt(profile, scene_config, scene_code)
+            logger.info(f"Stage 2: prompt assembled for '{scene_config.scene_name}'")
+
+            # ---- Stage 3: 字段语义识别 ----
+            self.prompt_log.append(field_prompt)
+            raw_signals = self.ai.call(field_prompt)
+            signal_sequence = validate_field_signal_sequence(
+                raw_signals, profile.field_count, scene_config.valid_codes
+            )
+            logger.info(f"Stage 3: signal_sequence={signal_sequence} (raw={raw_signals!r})")
+
         scene_config = self.routing.get(scene_code, self.routing["S0"])
-        field_prompt = build_field_semantic_prompt(profile, scene_config, scene_code)
-        logger.info(f"Stage 2: prompt assembled for '{scene_config.scene_name}'")
-
-        # ---- Stage 3: 字段语义识别 ----
-        self.prompt_log.append(field_prompt)
-        raw_signals = self.ai.call(field_prompt)
-        signal_sequence = validate_field_signal_sequence(
-            raw_signals, profile.field_count, scene_config.valid_codes
-        )
-        logger.info(f"Stage 3: signal_sequence={signal_sequence} (raw={raw_signals!r})")
 
         # ---- Stage 4: 缓存写入 + 字段名标准化 + 操作链组装 ----
-        self.cache.put(fingerprint, CacheEntry(scene_code, signal_sequence))
+        self.cache.put(
+            fingerprint,
+            CacheEntry(
+                scene_code,
+                signal_sequence,
+                certainty=scene_certainty,
+                engine=decided_by,
+            ),
+        )
         return self._execute(df, profile.field_names, signal_sequence, scene_config)
+
+    def _try_system1(self, profile):
+        """尝试系统一快通道；不可用或出错则返回 None 让调用方走系统二
+
+        注意这里连 System1RequestError 一起捕获：那意味着我们构造的问题有问题，
+        但如果就此抛出去，用户的数据清洗就中断了。
+        所以记 ERROR 日志（开发时一眼能看到）+ 降级（用户侧无感），两个目标都不放弃。
+        """
+        if self.decider is None:
+            return None
+        try:
+            return self.decider.decide(profile)
+        except System1Error as exc:
+            logger.error(f"系统一决策失败，回退系统二原路径：{type(exc).__name__}: {exc}")
+            return None
+
+    @staticmethod
+    def _cache_decisions(cached: CacheEntry) -> list[DecisionRecord]:
+        """把缓存命中还原成一条决策记录 —— 让决策日志对三种来源都连续"""
+        return [
+            DecisionRecord(
+                question_id="scene",
+                subject="scene",
+                chosen=cached.scene_code,
+                certainty=cached.certainty,
+                engine="cache",
+                verdict="cache",
+            )
+        ]
 
     def _from_cache(
         self, df: pd.DataFrame, profile, cached: CacheEntry

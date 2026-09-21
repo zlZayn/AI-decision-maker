@@ -4,13 +4,19 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "signalchain"
-version = "0.1.0"
+version = "1.0.0"
 description = "AI信号链决策框架：AI只传递极简信号码，本地负责查表执行"
 requires-python = ">=3.10"
 dependencies = [
     "pandas>=2.0",
     "openai>=1.0",
     "transformers",
+]
+
+[project.optional-dependencies]
+# 系统一（Jev / TypeSafe System One）。不装也能跑：未安装时自动降级为纯系统二。
+system1 = [
+    "typesafe-sdk>=0.7",
 ]
 
 [dependency-groups]

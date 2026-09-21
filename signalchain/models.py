@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from collections import Counter
 
 
@@ -50,10 +50,49 @@ class DataProfile:
 
 @dataclass
 class CacheEntry:
-    """缓存条目（fingerprint → CacheEntry）"""
+    """缓存条目（fingerprint → CacheEntry）
+
+    certainty / engine 是系统一接入后新增的可选字段：
+    它们回答"这条缓存当时是谁判的、有多确定"。老缓存文件缺这两个字段照样能读。
+    """
 
     scene_code: str          # 场景信号码，如 "S1"
     signal_sequence: str     # 字段信号序列，如 "IGADN"
+    certainty: float = 0.0   # 场景决策时的把握程度（0 表示未知/老缓存）
+    engine: str = ""         # 决策来源，如 "system1" / "system2"
+
+
+@dataclass
+class DecisionRecord:
+    """单条决策的可审计记录
+
+    系统一接入后，"AI 负责认知"这句话第一次有了可回溯的证据：
+    每个字段为什么是这个码、当时有多确定、有没有升级给系统二。
+
+    字段语义：
+      engine      最终答案由谁给出 —— "system1"（Jev）或 "system2"（LLM 升级裁决）
+      certainty   系统一当时的把握程度（∈[0,1]）。即使是 system2 的答案，
+                  这里也保留"触发升级时的那个 certainty"——它才是升级的理由。
+      verdict     系统一当时的判定：accept | provisional | escalate
+      escalated   是否发生了升级（engine == "system2" 时为 True）
+    """
+
+    question_id: str              # 问题标识，如 "scene" / "field:gender"
+    subject: str                  # 人类可读主体（字段名 / "scene"）
+    chosen: str                   # 最终选择（场景码 / 信号码 / 取值）
+    certainty: float              # 系统一把握程度 0.0~1.0
+    engine: str                   # "system1" | "system2"
+    probabilities: dict[str, float] = field(default_factory=dict)
+    escalated: bool = False
+    verdict: str = ""
+
+    def summary(self) -> str:
+        flag = "  [escalated -> system2]" if self.escalated else ""
+        return (
+            f"{self.subject:<18s} {self.chosen:<4s} "
+            f"certainty={self.certainty:.3f} verdict={self.verdict or '-':<11s} "
+            f"via {self.engine}{flag}"
+        )
 
 
 @dataclass

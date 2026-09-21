@@ -17,7 +17,7 @@ import time
 import pandas as pd
 from signalchain.pipeline import SignalChainPipeline
 from signalchain.ai_client import DeepSeekV4Client
-from config import API_KEY, API_URL, MODEL
+from config import SYSTEM2_API_KEY, SYSTEM2_BASE_URL, SYSTEM2_MODEL
 
 logging.getLogger("signalchain").setLevel(logging.ERROR)
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -42,9 +42,51 @@ BAR = "=" * 62
 DASH = "-" * 62
 
 
-def _pipeline() -> tuple[SignalChainPipeline, DeepSeekV4Client]:
-    client = DeepSeekV4Client(model=MODEL, api_key=API_KEY, base_url=API_URL, thinking=False)
-    pipeline = SignalChainPipeline(ai_client=client, cache_file=os.path.join(ROOT, "signal_cache.json"))
+def _build_evaluator(use_system1: bool):
+    """按需构造系统一引擎；不可用时返回 None，pipeline 自动走系统二"""
+    if not use_system1:
+        return None
+    try:
+        from config import SYSTEM1_API_KEY, SYSTEM1_BASE_URL, SYSTEM1_MODEL
+    except ImportError:
+        print("  [WARN] config.py 里没有 SYSTEM1_* 配置，忽略 --system1")
+        return None
+    if not SYSTEM1_API_KEY:
+        print("  [WARN] SYSTEM1_API_KEY 为空，忽略 --system1")
+        return None
+    from signalchain.system1 import JevEvaluator
+
+    evaluator = JevEvaluator(
+        api_key=SYSTEM1_API_KEY, base_url=SYSTEM1_BASE_URL, model=SYSTEM1_MODEL
+    )
+    if not evaluator.available():
+        print("  [WARN] 系统一不可用（未装 typesafe-sdk？请 uv sync --extra system1），忽略 --system1")
+        return None
+    return evaluator
+
+
+def _build_gate_policy():
+    """从 config.py 读门控阈值；缺省用 GatePolicy 默认值（0.80 / 0.55）"""
+    from signalchain.system1 import GatePolicy
+
+    try:
+        from config import SYSTEM1_ACCEPT, SYSTEM1_ESCALATE
+    except ImportError:
+        return GatePolicy()
+    return GatePolicy(accept=SYSTEM1_ACCEPT, escalate=SYSTEM1_ESCALATE)
+
+
+def _pipeline(use_system1: bool = False) -> tuple[SignalChainPipeline, DeepSeekV4Client]:
+    client = DeepSeekV4Client(
+        model=SYSTEM2_MODEL, api_key=SYSTEM2_API_KEY,
+        base_url=SYSTEM2_BASE_URL, thinking=False,
+    )
+    pipeline = SignalChainPipeline(
+        ai_client=client,
+        cache_file=os.path.join(ROOT, "signal_cache.json"),
+        evaluator=_build_evaluator(use_system1),
+        gate_policy=_build_gate_policy(),
+    )
     return pipeline, client
 
 
@@ -62,12 +104,12 @@ def _pad(s: str, width: int) -> str:
     return s + " " * max(0, width - len(s) - extra)
 
 
-def clean_file(filepath: str) -> dict | None:
+def clean_file(filepath: str, use_system1: bool = False) -> dict | None:
     basename = os.path.splitext(os.path.basename(filepath))[0]
     dirty = pd.read_csv(filepath)
     dirty_cols = list(dirty.columns)
 
-    pipeline, client = _pipeline()
+    pipeline, client = _pipeline(use_system1)
     t0 = time.time()
     try:
         clean, report = pipeline.run(dirty)
@@ -98,6 +140,14 @@ def clean_file(filepath: str) -> dict | None:
     print(f"  time: {elapsed:.2f}s  |  calls: {usage.total_calls}  |  cost: {cost:.6f}")
     if usage.prompt_tokens or usage.completion_tokens:
         print(f"  tokens: in={usage.prompt_tokens}  out={usage.completion_tokens}  reason={usage.reasoning_tokens}")
+
+    # 系统一的 token 与系统二分开报：两者的量级差一个数量级，混在一起看不清
+    s1_usage = pipeline.evaluator.usage if pipeline.evaluator is not None else None
+    if s1_usage is not None and (s1_usage.prompt_tokens or s1_usage.completion_tokens):
+        print(
+            f"  system1 tokens: calls={s1_usage.total_calls}  in={s1_usage.prompt_tokens}  "
+            f"out={s1_usage.completion_tokens}  (TypeSafe 输出不计费)"
+        )
     if gained:
         print(f"  + added:  {', '.join(gained)}")
     if lost:
@@ -143,6 +193,12 @@ def clean_file(filepath: str) -> dict | None:
             field, op, chg, err, samples = row
             print(f"  {_pad(field, 20)} {op:<22s} {chg:>4d} {err:>4d}  {samples}")
 
+    # --- 系统一决策日志（只有启用系统一时才有内容）---
+    if pipeline.decisions:
+        print("\n  decisions (system 1):")
+        for record in pipeline.decisions:
+            print(f"    {record.summary()}")
+
     total_changed = sum(r.changed for r in report.records)
     total_errors = sum(r.errors for r in report.records)
     status = "OK" if total_errors == 0 else f"ERR({total_errors})"
@@ -161,6 +217,9 @@ def clean_file(filepath: str) -> dict | None:
         "cost": cost,
         "changed": total_changed,
         "errors": total_errors,
+        "s1_calls": s1_usage.total_calls if s1_usage is not None else 0,
+        "s1_in": s1_usage.prompt_tokens if s1_usage is not None else 0,
+        "s1_out": s1_usage.completion_tokens if s1_usage is not None else 0,
     }
 
 
@@ -170,6 +229,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="SignalChain Data Cleaning Tool")
     parser.add_argument("file", nargs="?", help="clean a specific file (without .csv)")
     parser.add_argument("--no-cache", action="store_true", help="clear cache before cleaning")
+    parser.add_argument(
+        "--system1", action="store_true",
+        help="enable System 1 (Jev): scene + fields in ONE request, "
+             "low-confidence fields escalate to System 2 (needs uv sync --extra system1)",
+    )
     args = parser.parse_args()
 
     # clear cache if requested
@@ -195,13 +259,14 @@ if __name__ == "__main__":
 
     print(BAR)
     print("  SignalChain Cleaner")
-    print(f"  model: {MODEL} | thinking: OFF")
+    print(f"  model: {SYSTEM2_MODEL} | thinking: OFF")
+    print(f"  system 1 (Jev): {'ON' if args.system1 else 'off  (pass --system1 to enable)'}")
     print(BAR)
 
     t0 = time.time()
     results = []
     for fp in files:
-        r = clean_file(fp)
+        r = clean_file(fp, use_system1=args.system1)
         if r:
             results.append(r)
     elapsed = time.time() - t0
@@ -252,6 +317,15 @@ if __name__ == "__main__":
             f"{total_cost:>10.6f} "
             f"{total_changed:>7d}"
         )
+
+        total_s1_in = sum(r.get("s1_in", 0) for r in results)
+        total_s1_out = sum(r.get("s1_out", 0) for r in results)
+        total_s1_calls = sum(r.get("s1_calls", 0) for r in results)
+        if total_s1_calls:
+            print(
+                f"\n  system1 total: calls={total_s1_calls}  in={total_s1_in}  out={total_s1_out}"
+                f"  (system 2 calls={total_calls})"
+            )
 
         if total_errors:
             print(f"\n  WARNING: {total_errors} errors")
