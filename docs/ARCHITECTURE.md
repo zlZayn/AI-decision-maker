@@ -889,6 +889,8 @@ print(report.summary())
 
 - N = 字段数量
 - 缓存命中时 = 0 Token
+- ⚠️ 本表是**接入系统一之前的估算**，两阶段需相加（清洗链路 ≈ `30 + 60 + N×3`）；
+  实测的 API 自报数见 [../signalchain/SYSTEM1.md](../signalchain/SYSTEM1.md) §13.4.1
 
 ### 执行速度
 
