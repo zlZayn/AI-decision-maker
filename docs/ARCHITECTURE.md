@@ -19,6 +19,16 @@ SignalChain 的核心设计思路：**AI 负责"认知"，本地负责"执行"**
 3. **可控**：清洗规则完全在代码中，可审计、可调试
 4. **可扩展**：新增字段类型只需添加 Operation，无需改 AI Prompt
 
+### 三层决策（系统 0 / 1 / 2）
+
+"认知"分三档，按答案集合是否封闭与置信度高低路由：
+
+- **系统 0 · 本地查表**：字段名精确匹配（FIELD_NAME_HINTS），零推断、零 Token
+- **系统 1 · Jev**：答案集合封闭的判断（场景码 / 信号码 / 是否分类变量 / 是否有序），返回概率分布与置信度，不生成自由文本
+- **系统 2 · LLM**：开放式判断，以及系统 1 置信度不足时的升级裁决；是否升级由代码的门控决定
+
+系统 1 是可选链路，未配置时全部判断由系统 2 完成，行为与本文件其余描述一致。链路细节与实测数据见 [SYSTEM1_JEV.md](SYSTEM1_JEV.md)。
+
 ---
 
 ## AI 交互原理
@@ -84,7 +94,19 @@ order = [v for v in order if v in unique_values[name]]     # 只保留数据中�
 | 分类变量分析 | 2 次 | 第一层（筛选分类变量）+ 第二层（有序/无序判断） |
 | 缓存命中 | 0 次 | 跳过所有 AI 调用 |
 
-### 模型配置
+### 配置契约
+
+两套系统分别命名，模板见 config.example.py（config.py 已 gitignore）：
+
+| 配置项 | 归属 | 用途 |
+|--------|------|------|
+| SYSTEM2_API_KEY / SYSTEM2_BASE_URL / SYSTEM2_MODEL | 系统 2 | 开放式判断与升级裁决 |
+| SYSTEM1_API_KEY / SYSTEM1_BASE_URL / SYSTEM1_MODEL | 系统 1 | 闭集分类判断主路径；留空即降级为纯系统 2 |
+| SYSTEM1_ACCEPT / SYSTEM1_ESCALATE | 门控 | 置信度两档阈值，中间带采用但标记 provisional |
+
+系统 1 依赖 typesafe-sdk，属可选依赖组（`uv sync --extra system1`）；未安装时 evaluator 不可用，链路自动降级。
+
+### 模型配置（系统 2）
 
 ```python
 DeepSeekV4Client(

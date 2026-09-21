@@ -34,12 +34,18 @@ pip install pandas openai openpyxl
 
 ### 2. 配置 API Key
 
-编辑 `config.py`，修改以下配置：
+复制 `config.example.py` 为 `config.py`（已 gitignore，密钥不会进版本库），按两套系统分别填写：
 
 ```python
-API_KEY = "your-api-key"           # DeepSeek API Key
-API_URL = "https://api.deepseek.com"
-MODEL = "deepseek-v4-flash"
+# 系统二：通用大语言模型（慢、审慎、可生成文本）
+SYSTEM2_API_KEY = "your-deepseek-api-key"
+SYSTEM2_BASE_URL = "https://api.deepseek.com"
+SYSTEM2_MODEL = "deepseek-v4-flash"
+
+# 系统一：Jev / TypeSafe System One（快、只出概率分布）—— 可选
+SYSTEM1_API_KEY = ""                # 留空则自动降级为纯系统二
+SYSTEM1_BASE_URL = "https://api.typesafe.ai"
+SYSTEM1_MODEL = "jev-latest"
 ```
 
 ### 3. 准备数据
@@ -140,6 +146,7 @@ AI-decision-maker/
 │       └── user.csv
 ├── docs/
 │   ├── ARCHITECTURE.md
+│   ├── SYSTEM1_JEV.md
 │   ├── unified_framework_design.md
 │   └── 分类变量有序判断.md
 ├── examples/
@@ -165,9 +172,12 @@ AI-decision-maker/
 │   ├── ai_client.py
 │   ├── cache.py
 │   ├── categorical.py
+│   ├── categorical_system1.py
+│   ├── fastpath.py
 │   ├── knowledge.py
 │   ├── models.py
 │   ├── pipeline.py
+│   ├── system1.py
 │   ├── run_categorical_analysis.R
 │   ├── stage0_profile.py
 │   ├── stage1_scene.py
@@ -186,9 +196,12 @@ AI-decision-maker/
 │   ├── run_unit.py
 │   ├── test_cache.py
 │   ├── test_categorical.py
+│   ├── test_categorical_system1.py
+│   ├── test_fastpath.py
 │   ├── test_operations.py
 │   ├── test_pipeline.py
 │   ├── test_stage0.py
+│   ├── test_system1.py
 │   ├── test_stage1.py
 │   ├── test_stage2.py
 │   ├── test_stage3.py
@@ -204,6 +217,7 @@ AI-decision-maker/
 ├── pyproject.toml
 ├── run_categorical.py
 ├── run_clean.py
+├── run_smoke_jev.py
 ├── signal_cache.json
 └── uv.lock
 ```
@@ -303,6 +317,22 @@ clean, report = SignalChainPipeline.run_local(
 - 样本值发生显著变化
 
 清除缓存：删除 `signal_cache.json` 文件。
+
+---
+
+## 系统一（可选）：Jev 快通道
+
+默认走**系统二**（通用大模型）。额外接上 **系统一** Jev 后，清洗链路的两次 AI 往返
+会压成一次，并且每个字段都带概率与置信度：
+
+```bash
+uv sync --extra system1          # 装官方 SDK（不装也能跑，只是没系统一）
+uv run python run_clean.py medical --system1
+```
+
+拿不准的字段会自动升级给系统二裁决，所以最坏情况退化成今天的行为，不会更差。
+实测数据（中文脏数据准确率、延迟、token 成本、有序性判定）见
+[docs/SYSTEM1_JEV.md](docs/SYSTEM1_JEV.md) §13。
 
 ---
 
