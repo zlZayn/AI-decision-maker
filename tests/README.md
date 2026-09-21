@@ -7,6 +7,7 @@
 - test_system1.py → signalchain/system1.py（置信度数学、条件化、异常归类、问题原语）
 - test_fastpath.py → signalchain/fastpath.py（门控、批量升级、与系统二路径结果逐帧一致）
 - test_categorical_system1.py → signalchain/categorical_system1.py（noul 筛选、有序性门、假阳性回归）
+- run_unit.py：只跑单元测试（不消耗 Token）
 - run_all.py：三段聚合入口（单元 + 两个 e2e，后两者消耗 Token）
 - run_e2e_pipeline.py / run_e2e_categorical.py：端到端，需真实 API Key，不默认运行
 - run_token_benchmark.py：Token 基准，需 API Key，使用 signalchain.tokenizer

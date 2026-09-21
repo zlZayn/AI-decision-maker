@@ -7,7 +7,8 @@
 - 系统一设计与实测：见 [signalchain/SYSTEM1.md](signalchain/SYSTEM1.md)
 - 测试手册：见 [tests/README.md](tests/README.md)
 - 决策记录：见 [.agents/notes/](.agents/notes/)
-- 用户文档：见 [README.md](README.md) 与 [PROJECT_INTRO.md](PROJECT_INTRO.md)
+- 用户文档：见 [README.md](README.md)（根目录唯一门面）
+- 示例代码：见 [examples/README.md](examples/README.md)
 
 ## 常用命令（可执行规范）
 - `uv run pytest` — 单元测试
@@ -18,14 +19,14 @@
 - `uv run python run_smoke_jev.py [--offline|--all]` — 系统一（Jev）冒烟：中文样本 / 有序性 / 延迟 / token
 - `uv sync --extra system1` — 装系统一依赖（typesafe-sdk）；不装则系统一不可用
 
-## 验证快照（2026-08-24 实测）
+## 验证快照（最近一次：2026-09-21）
 - pytest: **250 passed / 0 failed**（基线 137 → 系统一接入 +97 → 解耦 +9 → 缓存分区 +7）
 - Jev 在线实测（jev-1.13.0）: 场景 3/3、字段码 16/16、有序性 5/5（见 [signalchain/SYSTEM1.md](signalchain/SYSTEM1.md)）
 - 纯系统一 vs 纯系统二 对照（2026-09-21）: 清洗链路 3 文件 SHA256 逐字节一致、操作链 18 行一致；分类链路 5/6 一致（data_B_type.json 系统二多判了 id，系统一更合理；report.json 不受影响）；两引擎各自可复现
 - 定位: demo，不上升生产级（见 [.agents/notes/decision-system1-jev-integration-2026-09-21.md](.agents/notes/decision-system1-jev-integration-2026-09-21.md)）
 
 ## 待办
-- [ ] PROJECT_INTRO.md 与根 [README.md](README.md) 职责重叠（都是用户向"是什么/为什么"），考虑合并进 README 或降为一节
+- （暂无）
 
 ## 活跃坑
 - 分类链路依赖 Rscript，未装 R 时 run_categorical.py 失败（见 [README.md](README.md)）
