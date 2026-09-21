@@ -24,7 +24,7 @@ import pandas as pd
 from signalchain.pipeline import SignalChainPipeline
 from signalchain.ai_client import DeepSeekV4Client
 from signalchain.tokenizer import count_tokens
-from config import API_KEY, API_URL, MODEL
+from config import SYSTEM2_API_KEY, SYSTEM2_BASE_URL, SYSTEM2_MODEL
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -52,9 +52,9 @@ def load_dirty_data() -> dict[str, pd.DataFrame]:
 def run_case(df: pd.DataFrame, thinking: bool) -> dict:
     """跑单个用例，返回 token 用量和耗时"""
     client = DeepSeekV4Client(
-        api_key=API_KEY,
-        base_url=API_URL,
-        model=MODEL,
+        api_key=SYSTEM2_API_KEY,
+        base_url=SYSTEM2_BASE_URL,
+        model=SYSTEM2_MODEL,
         thinking=thinking,
     )
     pipeline = SignalChainPipeline(ai_client=client, cache_file=":memory:")
@@ -62,9 +62,9 @@ def run_case(df: pd.DataFrame, thinking: bool) -> dict:
     # 先用 tokenizer 离线算输入 token
     pipeline_for_prompts = SignalChainPipeline(
         ai_client=DeepSeekV4Client(
-            api_key=API_KEY,
-            base_url=API_URL,
-            model=MODEL,
+            api_key=SYSTEM2_API_KEY,
+            base_url=SYSTEM2_BASE_URL,
+            model=SYSTEM2_MODEL,
             thinking=thinking,
         ),
         cache_file=":memory:",
@@ -100,7 +100,7 @@ def main():
 
     print(f"\n{BAR}")
     print("  V4 思考模式 ON vs OFF Token 对比")
-    print(f"  模型: {MODEL}")
+    print(f"  模型: {SYSTEM2_MODEL}")
     print(f"  数据: data/dirty/ ({len(test_cases)} 个文件)")
     print(f"{BAR}\n")
 

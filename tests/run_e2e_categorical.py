@@ -21,11 +21,14 @@ import pandas as pd
 from signalchain.stage0_profile import extract_profile
 from signalchain.categorical import CategoricalClassifier
 from signalchain.ai_client import DeepSeekV4Client
-from config import API_KEY, API_URL, MODEL
+from config import SYSTEM2_API_KEY, SYSTEM2_BASE_URL, SYSTEM2_MODEL
 
 
 def create_classifier() -> CategoricalClassifier:
-    client = DeepSeekV4Client(model=MODEL, api_key=API_KEY, base_url=API_URL, thinking=False)
+    client = DeepSeekV4Client(
+        model=SYSTEM2_MODEL, api_key=SYSTEM2_API_KEY,
+        base_url=SYSTEM2_BASE_URL, thinking=False,
+    )
     return CategoricalClassifier(client)
 
 
@@ -153,7 +156,7 @@ TESTS = [case_medical, case_pure_nominal, case_pure_ordinal, case_no_categorical
 
 def header():
     print(f"\n{BAR}")
-    print(f"  SignalChain · 分类变量端到端测试 · DeepSeek · {MODEL}")
+    print(f"  SignalChain · 分类变量端到端测试 · DeepSeek · {SYSTEM2_MODEL}")
     print(f"{BAR}")
 
 

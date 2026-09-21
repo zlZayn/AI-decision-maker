@@ -20,11 +20,14 @@ if sys.platform == "win32":
 import pandas as pd
 from signalchain.pipeline import SignalChainPipeline
 from signalchain.ai_client import DeepSeekV4Client
-from config import API_KEY, API_URL, MODEL
+from config import SYSTEM2_API_KEY, SYSTEM2_BASE_URL, SYSTEM2_MODEL
 
 
 def create_pipeline() -> SignalChainPipeline:
-    client = DeepSeekV4Client(model=MODEL, api_key=API_KEY, base_url=API_URL, thinking=False)
+    client = DeepSeekV4Client(
+        model=SYSTEM2_MODEL, api_key=SYSTEM2_API_KEY,
+        base_url=SYSTEM2_BASE_URL, thinking=False,
+    )
     return SignalChainPipeline(ai_client=client, cache_file=":memory:")
 
 
@@ -160,7 +163,7 @@ TESTS = [case_medical, case_user, case_finance, case_cache_hit]
 
 def header():
     print(f"\n{BAR}")
-    print(f"  SignalChain · Pipeline 端到端测试 · DeepSeek · {MODEL}")
+    print(f"  SignalChain · Pipeline 端到端测试 · DeepSeek · {SYSTEM2_MODEL}")
     print(f"{BAR}")
 
 

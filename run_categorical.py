@@ -21,7 +21,7 @@ import pandas as pd
 from signalchain.stage0_profile import extract_profile
 from signalchain.ai_client import DeepSeekV4Client
 from signalchain.categorical import CategoricalClassifier
-from config import API_KEY, API_URL, MODEL
+from config import SYSTEM2_API_KEY, SYSTEM2_BASE_URL, SYSTEM2_MODEL
 
 logging.getLogger("signalchain").setLevel(logging.ERROR)
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -88,14 +88,14 @@ def main():
 
     print(BAR)
     print("  Categorical Variable Analysis")
-    print(f"  model: {MODEL} | thinking: OFF")
+    print(f"  model: {SYSTEM2_MODEL} | thinking: OFF")
     print(BAR)
     print(f"\n  input : {os.path.relpath(INPUT_DIR, ROOT)} ({len(csv_files)} files)")
     print(f"  output: {os.path.relpath(OUTPUT_DIR, ROOT)}")
 
     # ---- AI 分类每个文件 ----
     client = DeepSeekV4Client(
-        model=MODEL, api_key=API_KEY, base_url=API_URL, thinking=False,
+        model=SYSTEM2_MODEL, api_key=SYSTEM2_API_KEY, base_url=SYSTEM2_BASE_URL, thinking=False,
     )
     classifier = CategoricalClassifier(client)
 
