@@ -423,3 +423,142 @@ class TestPipelineIntegration:
             pipeline.run(medical_frame())
             assert pipeline.decisions == []
             assert pipeline.decider is None
+
+
+# ============================================================
+# 两套系统解耦：默认互不依赖，串联是显式选择
+# ============================================================
+
+
+class TestDecoupling:
+    """系统一与系统二各自能单独跑；串联必须显式开启"""
+
+    def test_default_does_not_chain(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            pipeline = SignalChainPipeline(
+                cache_file=os.path.join(tmp, "c.json"),
+                evaluator=MockEvaluator(handler=medical_handler),
+            )
+            assert pipeline.escalate_to_system2 is False
+            # 关键：decider 拿不到系统二客户端，物理上无法串联
+            assert pipeline.decider.fallback is None
+
+    def test_chaining_is_opt_in(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            pipeline = SignalChainPipeline(
+                ai_client=TwoCallMockAI("S1", MEDICAL_CODES),
+                cache_file=os.path.join(tmp, "c.json"),
+                evaluator=MockEvaluator(handler=medical_handler),
+                escalate_to_system2=True,
+            )
+            assert pipeline.escalate_to_system2 is True
+            assert pipeline.decider.fallback is not None
+
+    def test_standalone_never_calls_system2(self):
+        """纯系统一：低置信字段落保守默认值，系统二一次都不被调用"""
+        frame = medical_frame()
+
+        def handler(state, questions):
+            answers = medical_handler(state, questions)
+            # age 给平坦分布 → certainty = 0 → 若串联就会升级
+            answers[field_question_id("age")] = choice_answer_dict(
+                "A", {code: 1.0 / len(CODE_ORDER) for code in CODE_ORDER}
+            )
+            return answers
+
+        with tempfile.TemporaryDirectory() as tmp:
+            system2 = MockAIClient()
+            pipeline = SignalChainPipeline(
+                ai_client=system2,
+                cache_file=os.path.join(tmp, "c.json"),
+                evaluator=MockEvaluator(handler=handler),
+                escalate_to_system2=False,
+            )
+            result, _ = pipeline.run(frame)
+
+            assert system2.call_log == []          # 系统二完全没参与
+            assert result["department"].iloc[0] == "心内科"   # 置信字段照常清洗
+            age_record = next(r for r in pipeline.decisions if r.subject == "age")
+            assert age_record.verdict == "escalate"
+            assert age_record.escalated is False   # 未被升级
+            assert age_record.engine == "system1"
+
+    def test_standalone_keeps_system1_scene_answer(self):
+        """纯系统一下场景低置信：保留系统一答案并用校验器兜底，不找系统二"""
+        frame = medical_frame()
+
+        def handler(state, questions):
+            answers = medical_handler(state, questions)
+            answers[SCENE_QUESTION_ID] = choice_answer_dict(
+                "S1", {code: 1.0 / len(VALID_SCENE_CODES) for code in VALID_SCENE_CODES}
+            )
+            return answers
+
+        with tempfile.TemporaryDirectory() as tmp:
+            system2 = MockAIClient()
+            pipeline = SignalChainPipeline(
+                ai_client=system2,
+                cache_file=os.path.join(tmp, "c.json"),
+                evaluator=MockEvaluator(handler=handler),
+                escalate_to_system2=False,
+            )
+            pipeline.run(frame)
+            assert system2.call_log == []
+            scene_record = next(r for r in pipeline.decisions if r.subject == "scene")
+            assert scene_record.chosen == "S1"
+            assert scene_record.engine == "system1"
+            assert scene_record.escalated is False
+
+    def test_escalation_failure_does_not_claim_success(self):
+        """启用串联但系统二调用抛异常：落 X，记录不得写成 engine=system2"""
+        frame = medical_frame()
+
+        def handler(state, questions):
+            answers = medical_handler(state, questions)
+            answers[field_question_id("age")] = choice_answer_dict(
+                "A", {code: 1.0 / len(CODE_ORDER) for code in CODE_ORDER}
+            )
+            return answers
+
+        class ExplodingAI(MockAIClient):
+            def call(self, prompt: str) -> str:
+                raise RuntimeError("系统二不可用")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            pipeline = SignalChainPipeline(
+                ai_client=ExplodingAI(),
+                cache_file=os.path.join(tmp, "c.json"),
+                evaluator=MockEvaluator(handler=handler),
+                escalate_to_system2=True,
+            )
+            pipeline.run(frame)
+            age_record = next(r for r in pipeline.decisions if r.subject == "age")
+            assert age_record.chosen == "X"
+            assert age_record.escalated is False
+            assert age_record.engine == "system1"
+            assert age_record.verdict == "escalate"
+
+    def test_chained_mode_does_call_system2(self):
+        """对照：显式开启串联后，同一个低置信字段确实会走系统二"""
+        frame = medical_frame()
+
+        def handler(state, questions):
+            answers = medical_handler(state, questions)
+            answers[field_question_id("age")] = choice_answer_dict(
+                "A", {code: 1.0 / len(CODE_ORDER) for code in CODE_ORDER}
+            )
+            return answers
+
+        with tempfile.TemporaryDirectory() as tmp:
+            system2 = MockAIClient(responses={"选项": "A"})
+            pipeline = SignalChainPipeline(
+                ai_client=system2,
+                cache_file=os.path.join(tmp, "c.json"),
+                evaluator=MockEvaluator(handler=handler),
+                escalate_to_system2=True,
+            )
+            pipeline.run(frame)
+            assert len(system2.call_log) == 1
+            age_record = next(r for r in pipeline.decisions if r.subject == "age")
+            assert age_record.escalated is True
+            assert age_record.engine == "system2"

@@ -35,9 +35,12 @@ class SignalChainPipeline:
     Stage 4: 字段名标准化 + 操作链组装
     Stage 5: 本地执行
 
-    可选系统一快通道（evaluator 不为 None 时启用）：
-    把 Stage 1 + Stage 3 压成一次 Jev 请求，低置信字段自动升级给系统二。
-    evaluator 为 None 时（默认）整条系统一路径不存在，行为与改动前完全一致。
+    两套系统互不依赖，各自可单独运行：
+      - 只传 ai_client（默认）→ 纯系统二，行为与改动前完全一致
+      - 只传 evaluator            → 纯系统一，不调用系统二（低置信走保守默认值）
+      - 两个都传 + escalate_to_system2=True → 串联（系统一低置信时升级给系统二）
+
+    escalate_to_system2 默认 False：串联是显式选择，不是默认行为。
     """
 
     def __init__(
@@ -47,14 +50,22 @@ class SignalChainPipeline:
         evaluator: Evaluator | None = None,
         gate_policy: GatePolicy | None = None,
         verbose_criteria: bool = False,
+        escalate_to_system2: bool = False,
     ):
         self.ai = ai_client or MockAIClient()
         self.evaluator = evaluator
+        self.escalate_to_system2 = escalate_to_system2
         self.gate_policy = gate_policy or GatePolicy()
+        if escalate_to_system2 and ai_client is None:
+            logger.warning(
+                "escalate_to_system2=True 但没有传 ai_client，"
+                "升级会落到 MockAIClient（返回默认值）。请显式传入系统二客户端。"
+            )
         self.decider = (
             System1Decider(
                 evaluator,
-                fallback_client=self.ai,
+                # 不串联时 fallback_client=None：低置信走保守默认值，绝不碰系统二
+                fallback_client=self.ai if escalate_to_system2 else None,
                 policy=self.gate_policy,
                 verbose_criteria=verbose_criteria,
             )

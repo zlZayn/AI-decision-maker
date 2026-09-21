@@ -363,22 +363,33 @@ class System1Decider:
                 )
             )
 
-        # ---- 批量升级：所有不确定字段合并成 1 次系统二调用 ----
+        # ---- 低置信字段收尾：批量升级，或落保守默认值 ----
+        # 两条路的决策记录必须区分开：没升级就不许写 escalated=True / engine=system2
         escalated_names: list[str] = []
         if uncertain and self.fallback is not None:
             escalated_names = [f.name for f in uncertain]
             codes_by_name = self._escalate(uncertain, scene_config, scene_code)
+            unresolved: list[str] = []
             for index, field_profile in enumerate(profile.fields):
-                if field_profile.name in codes_by_name:
-                    field_codes[index] = codes_by_name[field_profile.name]
-                    self._mark_escalated(decisions, field_profile.name, codes_by_name[field_profile.name])
+                name = field_profile.name
+                if name not in escalated_names:
+                    continue
+                if name in codes_by_name:
+                    field_codes[index] = codes_by_name[name]
+                    self._mark_escalated(decisions, name, codes_by_name[name])
+                else:
+                    # 系统二调用失败/未覆盖 → 落 X，且不谎报升级成功
+                    field_codes[index] = "X"
+                    self._mark_defaulted(decisions, name, "X")
+                    unresolved.append(name)
+            escalated_names = [n for n in escalated_names if n not in unresolved]
         elif uncertain:
             logger.warning(
-                f"{len(uncertain)} 个字段置信度不足但没有配置系统二客户端，"
-                f"直接落 X（pass_through）: {[f.name for f in uncertain]}"
+                f"{len(uncertain)} 个字段置信度不足且未启用系统二升级，"
+                f"落保守默认值 X（pass_through）: {[f.name for f in uncertain]}"
             )
             for field_profile in uncertain:
-                self._mark_escalated(decisions, field_profile.name, "X")
+                self._mark_defaulted(decisions, field_profile.name, "X")
 
         signal_sequence = "".join(field_codes)
         logger.info(f"系统一快通道：scene={scene_code} signals={signal_sequence}")
@@ -487,9 +498,24 @@ class System1Decider:
 
     @staticmethod
     def _mark_escalated(decisions: list[DecisionRecord], field_name: str, code: str) -> None:
+        """系统二真的给出了答案：来源改为 system2"""
         for record in decisions:
             if record.subject == field_name:
                 record.chosen = code
                 record.engine = "system2"
                 record.escalated = True
+                return
+
+    @staticmethod
+    def _mark_defaulted(decisions: list[DecisionRecord], field_name: str, code: str) -> None:
+        """没有可用的系统二：落保守默认值。来源仍是 system1 —— 不谎报升级
+
+        verdict 保留 "escalate"：它记录的是门控当时的判定；
+        escalated=False 说明这次没有真的升级。两者合起来才读得出"该升级但没能升级"。
+        """
+        for record in decisions:
+            if record.subject == field_name:
+                record.chosen = code
+                record.engine = "system1"
+                record.escalated = False
                 return

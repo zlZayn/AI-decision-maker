@@ -293,3 +293,54 @@ class TestPolicyKnobs:
             policy=GatePolicy(min_spread=1.0),
         ).classify(frame, profile)
         assert outcome.result.nominal == ["x"]
+
+
+def _borderline_handler(state, questions):
+    """把 gender 的分类判定做得很不确定，用于触发 borderline"""
+    answers = handler(state, questions)
+    answers[cat_question_id("gender")] = noul_answer_dict(0.52)
+    return answers
+
+
+class TestStandalone:
+    """纯系统一（fallback=None）：不确定项不进系统二复判，按概率照常采用"""
+
+    def test_standalone_keeps_decision(self):
+        profile = extract_profile(FRAME)
+        outcome = System1CategoricalClassifier(
+            MockEvaluator(handler=_borderline_handler), fallback=None
+        ).classify(FRAME, profile)
+
+        assert outcome.borderline == ["gender"]      # 仍然被记录
+        assert "gender" in outcome.result.nominal    # 但按概率照常采用
+        assert outcome.result.ordinal == {"education": ["小学", "高中", "本科", "硕士"]}
+        assert not any(r.escalated for r in outcome.decisions)
+
+    def test_standalone_records_escalate_verdict_without_escalating(self):
+        """决策日志要能区分该升级与已升级：verdict=escalate 而 escalated=False"""
+        profile = extract_profile(FRAME)
+        outcome = System1CategoricalClassifier(
+            MockEvaluator(handler=_borderline_handler), fallback=None
+        ).classify(FRAME, profile)
+        record = next(r for r in outcome.decisions if r.subject == "gender")
+        assert record.verdict == "escalate"
+        assert record.escalated is False
+        assert record.engine == "system1"
+
+    def test_chained_mode_does_escalate(self):
+        """对照：给了 fallback 才会真的复判"""
+        profile = extract_profile(FRAME)
+
+        class StubFallback:
+            calls = 0
+
+            def classify(self, df, profile):
+                StubFallback.calls += 1
+                return ClassificationResult(ordinal={}, nominal=["gender"])
+
+        StubFallback.calls = 0
+        outcome = System1CategoricalClassifier(
+            MockEvaluator(handler=_borderline_handler), fallback=StubFallback()
+        ).classify(FRAME, profile)
+        assert StubFallback.calls == 1
+        assert any(r.escalated for r in outcome.decisions if r.subject == "gender")

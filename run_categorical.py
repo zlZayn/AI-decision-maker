@@ -19,8 +19,9 @@ import time
 import pandas as pd
 
 from signalchain.stage0_profile import extract_profile
-from signalchain.ai_client import DeepSeekV4Client
+from signalchain.ai_client import DeepSeekV4Client, MockAIClient
 from signalchain.categorical import CategoricalClassifier
+from signalchain.categorical_system1 import System1CategoricalClassifier, System1Classification
 from config import SYSTEM2_API_KEY, SYSTEM2_BASE_URL, SYSTEM2_MODEL
 
 logging.getLogger("signalchain").setLevel(logging.ERROR)
@@ -70,12 +71,58 @@ def _cache_hit(csv_path: str, out_path: str) -> dict | None:
     return _read_cache(out_path)
 
 
+def _build_classifier(use_system1: bool, escalate: bool, client):
+    """构造分类器。两套系统互不依赖，返回 (classifier, 模式标签)。
+
+    - 默认：纯系统二
+    - --system1：纯系统一（不构造系统二客户端）
+    - --system1 --escalate：串联（系统一不确定的字段交系统二复判）
+
+    任何一步不可用都回退系统二，并打印原因。
+    """
+    if not use_system1:
+        return CategoricalClassifier(client), "system 2 only"
+
+    try:
+        from config import SYSTEM1_API_KEY, SYSTEM1_BASE_URL, SYSTEM1_MODEL
+    except ImportError:
+        print("  [WARN] config.py 里没有 SYSTEM1_* 配置，回退系统二")
+        return CategoricalClassifier(client), "system 2 only"
+
+    if not SYSTEM1_API_KEY:
+        print("  [WARN] SYSTEM1_API_KEY 为空，回退系统二")
+        return CategoricalClassifier(client), "system 2 only"
+
+    from signalchain.system1 import JevEvaluator
+
+    evaluator = JevEvaluator(
+        api_key=SYSTEM1_API_KEY, base_url=SYSTEM1_BASE_URL, model=SYSTEM1_MODEL
+    )
+    if not evaluator.available():
+        print("  [WARN] 系统一不可用（未装 typesafe-sdk？请 uv sync --extra system1），回退系统二")
+        return CategoricalClassifier(client), "system 2 only"
+
+    fallback = CategoricalClassifier(client) if escalate else None
+    tag = "system 1 + escalate to system 2" if escalate else "system 1 only"
+    return System1CategoricalClassifier(evaluator, fallback=fallback), tag
+
+
 def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="SignalChain Categorical Analysis")
     parser.add_argument("--no-cache", action="store_true", help="force re-classify all files")
+    parser.add_argument(
+        "--system1", action="store_true",
+        help="use System 1 (Jev) ONLY for classification (needs uv sync --extra system1)",
+    )
+    parser.add_argument(
+        "--escalate", action="store_true",
+        help="let System 1 escalate uncertain fields to System 2 "
+             "(opt-in chaining; requires --system1)",
+    )
     args = parser.parse_args()
+    system1_only = args.system1 and not args.escalate
 
     csv_files = sorted(
         f for f in os.listdir(INPUT_DIR) if f.endswith(".csv")
@@ -86,18 +133,25 @@ def main():
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+    # ---- 分类器（两套系统互不依赖）----
+    # 纯系统一时不构造系统二客户端，连 DeepSeek Key 都不需要
+    client = (
+        MockAIClient()
+        if system1_only
+        else DeepSeekV4Client(
+            model=SYSTEM2_MODEL, api_key=SYSTEM2_API_KEY,
+            base_url=SYSTEM2_BASE_URL, thinking=False,
+        )
+    )
+    classifier, classifier_tag = _build_classifier(args.system1, args.escalate, client)
+
     print(BAR)
     print("  Categorical Variable Analysis")
-    print(f"  model: {SYSTEM2_MODEL} | thinking: OFF")
+    print(f"  system 2 (LLM): {'OFF' if system1_only else 'ON'}  |  model: {SYSTEM2_MODEL}")
+    print(f"  mode: {classifier_tag}")
     print(BAR)
     print(f"\n  input : {os.path.relpath(INPUT_DIR, ROOT)} ({len(csv_files)} files)")
     print(f"  output: {os.path.relpath(OUTPUT_DIR, ROOT)}")
-
-    # ---- AI 分类每个文件 ----
-    client = DeepSeekV4Client(
-        model=SYSTEM2_MODEL, api_key=SYSTEM2_API_KEY, base_url=SYSTEM2_BASE_URL, thinking=False,
-    )
-    classifier = CategoricalClassifier(client)
 
     results = []
 
@@ -108,6 +162,7 @@ def main():
 
         out_name = filename.replace(".csv", "_type.json")
         out_path = os.path.join(OUTPUT_DIR, out_name)
+        decisions: list = []
 
         # ---- 缓存检查 ----
         cached = None if args.no_cache else _cache_hit(filepath, out_path)
@@ -123,10 +178,20 @@ def main():
             elapsed = 0.0
             cache_label = "  [cache]"
         else:
-            # 调用 AI
+            # 调用分类器
             t0 = time.time()
-            result = classifier.classify(df, profile)
+            outcome = classifier.classify(df, profile)
             elapsed = time.time() - t0
+
+            if isinstance(outcome, System1Classification):
+                result = outcome.result
+                decisions = outcome.decisions
+            elif outcome is None:
+                # 系统一此刻不可用：本文件回退系统二，不中断整批
+                print("  [WARN] 系统一不可用，本文件回退系统二")
+                result = CategoricalClassifier(client).classify(df, profile)
+            else:
+                result = outcome
 
             # 写入分类结果 JSON
             output = {"ordinal": result.ordinal, "nominal": result.nominal}
@@ -155,6 +220,8 @@ def main():
         if result.nominal:
             for name in result.nominal:
                 print(f"  [无序]  {name}")
+        for record in decisions:
+            print(f"    {record.summary()}")
 
     # ---- 决策逻辑：根据变量类型选择最佳方法 ----
     for r in results:

@@ -16,7 +16,7 @@ import sys
 import time
 import pandas as pd
 from signalchain.pipeline import SignalChainPipeline
-from signalchain.ai_client import DeepSeekV4Client
+from signalchain.ai_client import DeepSeekV4Client, MockAIClient
 from config import SYSTEM2_API_KEY, SYSTEM2_BASE_URL, SYSTEM2_MODEL
 
 logging.getLogger("signalchain").setLevel(logging.ERROR)
@@ -76,7 +76,26 @@ def _build_gate_policy():
     return GatePolicy(accept=SYSTEM1_ACCEPT, escalate=SYSTEM1_ESCALATE)
 
 
-def _pipeline(use_system1: bool = False) -> tuple[SignalChainPipeline, DeepSeekV4Client]:
+def _pipeline(
+    use_system1: bool = False, escalate: bool = False
+) -> tuple[SignalChainPipeline, DeepSeekV4Client]:
+    """两套系统互不依赖：
+
+    - 默认：纯系统二
+    - --system1：纯系统一（不构造系统二客户端，连 DeepSeek Key 都不需要）
+    - --system1 --escalate：串联（系统一低置信时升级给系统二）
+    """
+    evaluator = _build_evaluator(use_system1)
+
+    if evaluator is not None and not escalate:
+        pipeline = SignalChainPipeline(
+            cache_file=os.path.join(ROOT, "signal_cache.json"),
+            evaluator=evaluator,
+            gate_policy=_build_gate_policy(),
+            escalate_to_system2=False,
+        )
+        return pipeline, MockAIClient()
+
     client = DeepSeekV4Client(
         model=SYSTEM2_MODEL, api_key=SYSTEM2_API_KEY,
         base_url=SYSTEM2_BASE_URL, thinking=False,
@@ -84,8 +103,9 @@ def _pipeline(use_system1: bool = False) -> tuple[SignalChainPipeline, DeepSeekV
     pipeline = SignalChainPipeline(
         ai_client=client,
         cache_file=os.path.join(ROOT, "signal_cache.json"),
-        evaluator=_build_evaluator(use_system1),
+        evaluator=evaluator,
         gate_policy=_build_gate_policy(),
+        escalate_to_system2=escalate,
     )
     return pipeline, client
 
@@ -104,12 +124,14 @@ def _pad(s: str, width: int) -> str:
     return s + " " * max(0, width - len(s) - extra)
 
 
-def clean_file(filepath: str, use_system1: bool = False) -> dict | None:
+def clean_file(
+    filepath: str, use_system1: bool = False, escalate: bool = False
+) -> dict | None:
     basename = os.path.splitext(os.path.basename(filepath))[0]
     dirty = pd.read_csv(filepath)
     dirty_cols = list(dirty.columns)
 
-    pipeline, client = _pipeline(use_system1)
+    pipeline, client = _pipeline(use_system1, escalate)
     t0 = time.time()
     try:
         clean, report = pipeline.run(dirty)
@@ -231,8 +253,14 @@ if __name__ == "__main__":
     parser.add_argument("--no-cache", action="store_true", help="clear cache before cleaning")
     parser.add_argument(
         "--system1", action="store_true",
-        help="enable System 1 (Jev): scene + fields in ONE request, "
-             "low-confidence fields escalate to System 2 (needs uv sync --extra system1)",
+        help="use System 1 (Jev) ONLY: scene + fields in ONE request, "
+             "low-confidence items fall back to conservative defaults "
+             "(needs uv sync --extra system1)",
+    )
+    parser.add_argument(
+        "--escalate", action="store_true",
+        help="let System 1 escalate low-confidence items to System 2 "
+             "(opt-in chaining; requires --system1)",
     )
     args = parser.parse_args()
 
@@ -259,14 +287,20 @@ if __name__ == "__main__":
 
     print(BAR)
     print("  SignalChain Cleaner")
-    print(f"  model: {SYSTEM2_MODEL} | thinking: OFF")
-    print(f"  system 1 (Jev): {'ON' if args.system1 else 'off  (pass --system1 to enable)'}")
+    print(f"  system 2 (LLM): {'ON' if (not args.system1 or args.escalate) else 'OFF'}  |  model: {SYSTEM2_MODEL}")
+    if not args.system1:
+        mode = "system 2 only"
+    elif args.escalate:
+        mode = "system 1 + escalate to system 2"
+    else:
+        mode = "system 1 only (low confidence -> conservative defaults)"
+    print(f"  mode: {mode}")
     print(BAR)
 
     t0 = time.time()
     results = []
     for fp in files:
-        r = clean_file(fp, use_system1=args.system1)
+        r = clean_file(fp, use_system1=args.system1, escalate=args.escalate)
         if r:
             results.append(r)
     elapsed = time.time() - t0
