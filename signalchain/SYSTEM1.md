@@ -559,7 +559,9 @@ class GatePolicy:
 单价来源：
 
 - Jev：`$0.042 / 百万输入 token`，输出不计费。
-  **该单价未能在公开文档核实**（docs.typesafe.ai 无定价页），**以 https://console.typesafe.ai/ 为准**。
+  由**官方 cookbook 的代码常量**佐证（`PRICE = (0.042, 0.00)`，$ / 1M tokens（输入, 输出），
+  标注 "TypeSafe jev-1.12 as of 2026-09, see README"）；该来源自留 "see README"，
+  公开文档仍无定价页，故**以 https://console.typesafe.ai/ 为准**。
 - 系统二：`¥1.0 / 百万输入`、`¥2.0 / 百万输出`（与 config 及 run_clean.py 一致）。
 
 清洗链路（medical.csv 单文件）：
@@ -572,7 +574,7 @@ class GatePolicy:
 > **价格基准**
 > - 基准日：2026-09-21
 > - 系统二：config.py（¥1.0/M 输入、¥2.0/M 输出）
-> - 系统一：$0.042/M **未核实**，以 https://console.typesafe.ai/ 为准
+> - 系统一：$0.042/M（官方 cookbook 常量佐证，仍以 https://console.typesafe.ai/ 为准）
 > - 汇率：1 USD = 7.1 CNY（**假设值，非官方**）
 > - **价格变动需重算本表**（下张表同此基准）
 
@@ -583,13 +585,13 @@ class GatePolicy:
 | 系统一（Jev）| 4633 | $0.042 / M | 289（不计费）| $0 | $0.000097 | 2 | **$0.000195** |
 | 系统二（LLM）| 366 | ¥1.0 / M | 17 | ¥2.0 / M | ¥0.000200 | 2 | **¥0.000400** |
 
-> **价格基准同清洗链路表**（基准日 2026-09-21；系统一 $0.042/M 未核实，以 console.typesafe.ai 为准；
+> **价格基准同清洗链路表**（基准日 2026-09-21；系统一 $0.042/M 由官方 cookbook 常量佐证，仍以 console.typesafe.ai 为准；
 > 汇率 1 USD = 7.1 CNY 为假设值；价格变动需重算本表）。
 
 系统一分类链路每文件发 2 层请求（筛分类变量 + 判有序性），故"单次成本"= 每文件总成本 ÷ 2。
 
-⚠️ **单价未核实**：Jev 的 `$0.042 / 百万输入 token` **未能在公开文档核实**
-（docs.typesafe.ai 无定价页），**以 https://console.typesafe.ai/ 为准**；
+⚠️ **单价口径**：Jev 的 `$0.042 / 百万输入 token`（输出不计费）由**官方 cookbook 的代码常量**佐证，
+但该来源自留 "see README"、公开文档仍无定价页 —— **以 https://console.typesafe.ai/ 为准**；
 系统二的 `¥1.0 / ¥2.0` 取自本项目 config 与 run_clean.py。
 
 **两个币种不合并、不换算。**
@@ -637,7 +639,7 @@ class GatePolicy:
 
 - **汇率 1 USD = 7.1 CNY**：**假设值，非观测值**。换汇率时成本倍数按
   `0.26 × 汇率`（清洗）/ `0.49 × 汇率`（分类）缩放，无需重测 token。
-- **系统一单价 $0.042/M 输入**：**未核实**（公开文档无定价页），以 https://console.typesafe.ai/ 为准。
+- **系统一单价 $0.042/M 输入**：官方 cookbook 常量佐证，仍以 https://console.typesafe.ai/ 为准。
 - **系统二单价 ¥1.0 / ¥2.0**：取自本项目 config，同样可调。
 
 单价与汇率的完整声明见 §13.4.2 两张成本表下方；表内数字同为 2026-09-21 口径。
@@ -735,10 +737,7 @@ two_pass 多付一份 S 与一次场景调用，省下 `N × (K_全 − K_子集
 two_pass 的价值在**准确性**（不依赖"砍掉场景外码就对"这个假设），不在成本。
 **选它是为了准，不是为了省。**
 
-> 顺带佐证单价：该 cookbook 的代码里写着
-> `PRICE = (0.042, 0.00)  # $ per 1M tokens (input, output); TypeSafe jev-1.12 as of 2026-09, see README`。
-> 这是 §13.4.2 那个"$0.042/M、输出免费"迄今最接近官方的公开出处；
-> 但它自己仍标注 "see README"，所以**仍以 console.typesafe.ai 为准**。
+> 该 cookbook 也是 §13.4.2 单价的佐证来源（其代码常量 `PRICE = (0.042, 0.00)`），详见 §13.4.2。
 
 ### 13.5 实测改了设计里的哪些东西
 
