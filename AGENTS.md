@@ -9,6 +9,7 @@
 - 决策记录：见 [.agents/notes/](.agents/notes/)
 - 用户文档：见 [README.md](README.md)（根目录唯一门面）
 - 示例代码：见 [examples/README.md](examples/README.md)
+- 双件分离：AGENTS.md 只写规则，README.md 只写是什么/怎么改
 
 ## 常用命令（可执行规范）
 - `uv run pytest` — 单元测试
