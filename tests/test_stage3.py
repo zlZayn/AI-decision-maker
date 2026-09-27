@@ -7,7 +7,9 @@ class TestValidateFieldSignalSequence:
     """测试 validate_field_signal_sequence 函数"""
 
     def test_valid_sequence(self):
-        result = validate_field_signal_sequence("IGADN", 5, {"I", "G", "A", "D", "N", "X"})
+        result = validate_field_signal_sequence(
+            "IGADN", 5, {"I", "G", "A", "D", "N", "X"}
+        )
         assert result == "IGADN"
 
     def test_too_short_pads_with_x(self):
@@ -17,7 +19,9 @@ class TestValidateFieldSignalSequence:
 
     def test_too_long_truncates(self):
         """过长 → 截取前 field_count 个字符"""
-        result = validate_field_signal_sequence("IGADNXX", 5, {"I", "G", "A", "D", "N", "X"})
+        result = validate_field_signal_sequence(
+            "IGADNXX", 5, {"I", "G", "A", "D", "N", "X"}
+        )
         assert result == "IGADN"
 
     def test_invalid_code_replaced_per_char(self):
@@ -27,7 +31,9 @@ class TestValidateFieldSignalSequence:
         assert result == "MXTI"
 
     def test_whitespace_handling(self):
-        result = validate_field_signal_sequence("I G A D N", 5, {"I", "G", "A", "D", "N", "X"})
+        result = validate_field_signal_sequence(
+            "I G A D N", 5, {"I", "G", "A", "D", "N", "X"}
+        )
         assert result == "IGADN"
 
     def test_empty_output_fallback(self):
@@ -51,10 +57,14 @@ class TestValidateFieldSignalSequence:
 
     def test_newline_handling(self):
         """AI 有时在输出中加换行"""
-        result = validate_field_signal_sequence("IGA\nDN", 5, {"I", "G", "A", "D", "N", "X"})
+        result = validate_field_signal_sequence(
+            "IGA\nDN", 5, {"I", "G", "A", "D", "N", "X"}
+        )
         assert result == "IGADN"
 
     def test_six_chars_for_five_fields(self):
         """AI 多输出一个字符的场景（如 IDGADN → 截取前5个 → IDGAD）"""
-        result = validate_field_signal_sequence("IDGADN", 5, {"I", "G", "A", "D", "N", "X"})
+        result = validate_field_signal_sequence(
+            "IDGADN", 5, {"I", "G", "A", "D", "N", "X"}
+        )
         assert result == "IDGAD"

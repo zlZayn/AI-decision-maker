@@ -43,8 +43,13 @@ class DateTimeParser(Operation):
 
     # 纯日期格式（无时间部分）
     DATE_ONLY_FORMATS: ClassVar[set[str]] = {
-        "%Y-%m-%d", "%Y/%m/%d", "%Y年%m月%d日",
-        "%d/%m/%Y", "%m/%d/%Y", "%Y%m%d", "%Y.%m.%d",
+        "%Y-%m-%d",
+        "%Y/%m/%d",
+        "%Y年%m月%d日",
+        "%d/%m/%Y",
+        "%m/%d/%Y",
+        "%Y%m%d",
+        "%Y.%m.%d",
     }
 
     def execute(self, data: pd.Series) -> pd.Series:

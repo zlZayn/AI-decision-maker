@@ -9,10 +9,17 @@ import pandas as pd
 from signalchain.operations.base import Operation
 
 CURRENCY_MAP = {
-    "¥": "CNY", "￥": "CNY", "CNY": "CNY", "RMB": "CNY",
-    "$": "USD", "USD": "USD", "US$": "USD",
-    "€": "EUR", "EUR": "EUR",
-    "£": "GBP", "GBP": "GBP",
+    "¥": "CNY",
+    "￥": "CNY",
+    "CNY": "CNY",
+    "RMB": "CNY",
+    "$": "USD",
+    "USD": "USD",
+    "US$": "USD",
+    "€": "EUR",
+    "EUR": "EUR",
+    "£": "GBP",
+    "GBP": "GBP",
 }
 
 

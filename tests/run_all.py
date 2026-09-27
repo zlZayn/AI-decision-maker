@@ -23,8 +23,14 @@ if sys.platform == "win32":
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS = [
     ("1/3 本地单元测试 (MockAI)", os.path.join(ROOT, "tests", "run_unit.py")),
-    ("2/3 Pipeline 端到端测试 (DeepSeek)", os.path.join(ROOT, "tests", "run_e2e_pipeline.py")),
-    ("3/3 分类变量端到端测试 (DeepSeek)", os.path.join(ROOT, "tests", "run_e2e_categorical.py")),
+    (
+        "2/3 Pipeline 端到端测试 (DeepSeek)",
+        os.path.join(ROOT, "tests", "run_e2e_pipeline.py"),
+    ),
+    (
+        "3/3 分类变量端到端测试 (DeepSeek)",
+        os.path.join(ROOT, "tests", "run_e2e_categorical.py"),
+    ),
 ]
 
 TAG = "ALL"

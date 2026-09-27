@@ -68,10 +68,14 @@ class TestBuildFieldSemanticPrompt:
     """测试 Prompt 组装"""
 
     def test_prompt_contains_field_info(self):
-        profile = DataProfile(fields=[
-            FieldProfile(name="gender", type="string", samples=["M", "F"], null_ratio=0.0),
-            FieldProfile(name="age", type="string", samples=["30"], null_ratio=0.0),
-        ])
+        profile = DataProfile(
+            fields=[
+                FieldProfile(
+                    name="gender", type="string", samples=["M", "F"], null_ratio=0.0
+                ),
+                FieldProfile(name="age", type="string", samples=["30"], null_ratio=0.0),
+            ]
+        )
         scene_config = ROUTING_TABLE["S1"]
         prompt = build_field_semantic_prompt(profile, scene_config, scene_code="S1")
 
@@ -80,9 +84,11 @@ class TestBuildFieldSemanticPrompt:
         assert "医疗数据" in prompt
 
     def test_prompt_contains_code_options(self):
-        profile = DataProfile(fields=[
-            FieldProfile(name="x", type="string", samples=["a"], null_ratio=0.0),
-        ])
+        profile = DataProfile(
+            fields=[
+                FieldProfile(name="x", type="string", samples=["a"], null_ratio=0.0),
+            ]
+        )
         scene_config = ROUTING_TABLE["S1"]
         prompt = build_field_semantic_prompt(profile, scene_config, scene_code="S1")
 

@@ -71,6 +71,8 @@ class TestAssembleOperations:
             valid_codes={"X"},
             operations={"X": "pass_through"},
         )
-        ops = assemble_operations(field_names, signal_sequence, scene_config, custom_registry)
+        ops = assemble_operations(
+            field_names, signal_sequence, scene_config, custom_registry
+        )
 
         assert ops[0][1].name == "pass_through"

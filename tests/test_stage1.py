@@ -8,10 +8,16 @@ class TestBuildScenePrompt:
     """测试 build_scene_prompt 函数"""
 
     def test_prompt_contains_field_info(self):
-        profile = DataProfile(fields=[
-            FieldProfile(name="patient_id", type="string", samples=["P001"], null_ratio=0.0),
-            FieldProfile(name="gender", type="string", samples=["M", "F"], null_ratio=0.0),
-        ])
+        profile = DataProfile(
+            fields=[
+                FieldProfile(
+                    name="patient_id", type="string", samples=["P001"], null_ratio=0.0
+                ),
+                FieldProfile(
+                    name="gender", type="string", samples=["M", "F"], null_ratio=0.0
+                ),
+            ]
+        )
         prompt = build_scene_prompt(profile)
 
         assert "patient_id" in prompt
@@ -20,9 +26,11 @@ class TestBuildScenePrompt:
         assert "S0" in prompt
 
     def test_prompt_contains_scene_options(self):
-        profile = DataProfile(fields=[
-            FieldProfile(name="x", type="string", samples=["a"], null_ratio=0.0),
-        ])
+        profile = DataProfile(
+            fields=[
+                FieldProfile(name="x", type="string", samples=["a"], null_ratio=0.0),
+            ]
+        )
         prompt = build_scene_prompt(profile)
 
         assert "S1=医疗数据" in prompt

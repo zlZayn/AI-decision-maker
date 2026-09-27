@@ -48,7 +48,15 @@ class TestSignalCache:
     def test_version_mismatch_clears_cache(self):
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as f:
             # 写入一个版本不匹配的缓存文件
-            json.dump({"_version": "0.0", "entries": {"fp1": {"scene_code": "S1", "signal_sequence": "IGADN"}}}, f)
+            json.dump(
+                {
+                    "_version": "0.0",
+                    "entries": {
+                        "fp1": {"scene_code": "S1", "signal_sequence": "IGADN"}
+                    },
+                },
+                f,
+            )
             path = f.name
 
         cache = SignalCache(path)
@@ -90,15 +98,25 @@ class TestNamespaces:
             jev.put("fp_shared", CacheEntry("S3", "IGAEP"))
 
             # 关键：回到第一个引擎，它的条目必须原样还在
-            assert SignalCache(path, namespace="system2").get("fp_shared").signal_sequence == "IGADN"
-            assert SignalCache(path, namespace="jev:jev-latest").get("fp_shared").signal_sequence == "IGAEP"
+            assert (
+                SignalCache(path, namespace="system2").get("fp_shared").signal_sequence
+                == "IGADN"
+            )
+            assert (
+                SignalCache(path, namespace="jev:jev-latest")
+                .get("fp_shared")
+                .signal_sequence
+                == "IGAEP"
+            )
             assert jev.namespaces() == ["jev:jev-latest", "system2"]
 
     def test_items_exposes_provenance(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "cache.json")
             cache = SignalCache(path, namespace="jev:jev-latest")
-            cache.put("fp1", CacheEntry("S1", "IGADN", certainty=0.99, engine="system1"))
+            cache.put(
+                "fp1", CacheEntry("S1", "IGADN", certainty=0.99, engine="system1")
+            )
 
             reloaded = SignalCache(path, namespace="jev:jev-latest")
             assert len(reloaded) == 1
@@ -122,13 +140,19 @@ class TestNamespaces:
                             "system2": {
                                 "fingerprint": "stale-fingerprint",
                                 "entries": {
-                                    "fp_old": {"scene_code": "S1", "signal_sequence": "IGADN"}
+                                    "fp_old": {
+                                        "scene_code": "S1",
+                                        "signal_sequence": "IGADN",
+                                    }
                                 },
                             },
                             "jev:jev-latest": {
                                 "fingerprint": config_fingerprint("jev:jev-latest"),
                                 "entries": {
-                                    "fp_new": {"scene_code": "S3", "signal_sequence": "IGAEP"}
+                                    "fp_new": {
+                                        "scene_code": "S3",
+                                        "signal_sequence": "IGAEP",
+                                    }
                                 },
                             },
                         },
@@ -142,7 +166,10 @@ class TestNamespaces:
 
             namespaces = _read_raw(path)["namespaces"]
             assert set(namespaces) == {"jev:jev-latest"}  # 失效分区被剪掉
-            assert set(namespaces["jev:jev-latest"]["entries"]) == {"fp_new", "fp_extra"}
+            assert set(namespaces["jev:jev-latest"]["entries"]) == {
+                "fp_new",
+                "fp_extra",
+            }
 
     def test_unknown_schema_is_discarded(self):
         """旧格式没有 schema 字段：条目归属不可考，整体作废且不报错"""
@@ -152,7 +179,9 @@ class TestNamespaces:
                 json.dump(
                     {
                         "_code_hash": "deadbeef",
-                        "entries": {"fp1": {"scene_code": "S1", "signal_sequence": "IGADN"}},
+                        "entries": {
+                            "fp1": {"scene_code": "S1", "signal_sequence": "IGADN"}
+                        },
                     },
                     handle,
                 )

@@ -45,10 +45,12 @@ class SequenceMockAI(MockAIClient):
 
 def _make_profile(fields: list[tuple[str, str, list[str]]]) -> DataProfile:
     """快捷创建 DataProfile。参数：(name, type, samples)"""
-    return DataProfile(fields=[
-        FieldProfile(name=n, type=t, samples=s, null_ratio=0.0)
-        for n, t, s in fields
-    ])
+    return DataProfile(
+        fields=[
+            FieldProfile(name=n, type=t, samples=s, null_ratio=0.0)
+            for n, t, s in fields
+        ]
+    )
 
 
 def _make_df(columns: dict[str, list]) -> pd.DataFrame:
@@ -62,10 +64,12 @@ def _make_df(columns: dict[str, list]) -> pd.DataFrame:
 
 class TestBuildCategoricalPrompt:
     def test_contains_field_info(self):
-        profile = _make_profile([
-            ("gender", "string", ["M", "F"]),
-            ("age", "int", ["30", "25"]),
-        ])
+        profile = _make_profile(
+            [
+                ("gender", "string", ["M", "F"]),
+                ("age", "int", ["30", "25"]),
+            ]
+        )
         prompt = build_categorical_prompt(profile)
         assert "gender(string, 2种)" in prompt
         assert "age(int, 2种)" in prompt
@@ -118,15 +122,11 @@ class TestValidateCategoricalOutput:
         assert result == ["gender", "age"]
 
     def test_deduplicates(self):
-        result = validate_categorical_output(
-            "gender,gender,age", ["gender", "age"]
-        )
+        result = validate_categorical_output("gender,gender,age", ["gender", "age"])
         assert result == ["gender", "age"]
 
     def test_preserves_order(self):
-        result = validate_categorical_output(
-            "age,gender", ["gender", "age"]
-        )
+        result = validate_categorical_output("age,gender", ["gender", "age"])
         assert result == ["age", "gender"]
 
     def test_whitespace_handling(self):
@@ -160,14 +160,10 @@ class TestValidateOrdinalOutput:
         }
 
     def test_no_ordinal(self):
-        assert validate_ordinal_output(
-            "无", ["gender"], {"gender": ["M", "F"]}
-        ) == {}
+        assert validate_ordinal_output("无", ["gender"], {"gender": ["M", "F"]}) == {}
 
     def test_empty_output(self):
-        assert validate_ordinal_output(
-            "", ["gender"], {"gender": ["M", "F"]}
-        ) == {}
+        assert validate_ordinal_output("", ["gender"], {"gender": ["M", "F"]}) == {}
 
     def test_filters_invalid_field(self):
         raw = "nonexistent:小学>本科"
@@ -277,25 +273,31 @@ class TestApplyCategoricalType:
 class TestCategoricalClassifier:
     def test_mixed_fields(self):
         """同时包含有序、无序、非分类变量"""
-        df = _make_df({
-            "patient_id": ["P001", "P002", "P003"],
-            "gender": ["M", "F", "M"],
-            "education": ["小学", "本科", "高中"],
-            "satisfaction": ["满意", "不满意", "非常满意"],
-            "age": [30, 25, 42],
-        })
-        profile = _make_profile([
-            ("patient_id", "string", ["P001", "P002", "P003"]),
-            ("gender", "string", ["M", "F"]),
-            ("education", "string", ["小学", "本科", "高中"]),
-            ("satisfaction", "string", ["满意", "不满意", "非常满意"]),
-            ("age", "int", ["30", "25", "42"]),
-        ])
+        df = _make_df(
+            {
+                "patient_id": ["P001", "P002", "P003"],
+                "gender": ["M", "F", "M"],
+                "education": ["小学", "本科", "高中"],
+                "satisfaction": ["满意", "不满意", "非常满意"],
+                "age": [30, 25, 42],
+            }
+        )
+        profile = _make_profile(
+            [
+                ("patient_id", "string", ["P001", "P002", "P003"]),
+                ("gender", "string", ["M", "F"]),
+                ("education", "string", ["小学", "本科", "高中"]),
+                ("satisfaction", "string", ["满意", "不满意", "非常满意"]),
+                ("age", "int", ["30", "25", "42"]),
+            ]
+        )
 
-        mock = SequenceMockAI([
-            "gender,education,satisfaction",
-            "education:小学>高中>本科;satisfaction:不满意>满意>非常满意",
-        ])
+        mock = SequenceMockAI(
+            [
+                "gender,education,satisfaction",
+                "education:小学>高中>本科;satisfaction:不满意>满意>非常满意",
+            ]
+        )
         classifier = CategoricalClassifier(mock)
         result = classifier.classify(df, profile)
 
@@ -307,10 +309,12 @@ class TestCategoricalClassifier:
     def test_no_categorical(self):
         """没有分类变量"""
         df = _make_df({"age": [30, 25], "amount": [100, 200]})
-        profile = _make_profile([
-            ("age", "int", ["30", "25"]),
-            ("amount", "int", ["100", "200"]),
-        ])
+        profile = _make_profile(
+            [
+                ("age", "int", ["30", "25"]),
+                ("amount", "int", ["100", "200"]),
+            ]
+        )
 
         mock = SequenceMockAI(["无"])
         result = CategoricalClassifier(mock).classify(df, profile)
@@ -322,10 +326,12 @@ class TestCategoricalClassifier:
     def test_all_nominal(self):
         """全部是无序变量"""
         df = _make_df({"gender": ["M", "F"], "city": ["北京", "上海"]})
-        profile = _make_profile([
-            ("gender", "string", ["M", "F"]),
-            ("city", "string", ["北京", "上海"]),
-        ])
+        profile = _make_profile(
+            [
+                ("gender", "string", ["M", "F"]),
+                ("city", "string", ["北京", "上海"]),
+            ]
+        )
 
         mock = SequenceMockAI(["gender,city", "无"])
         result = CategoricalClassifier(mock).classify(df, profile)
@@ -335,19 +341,25 @@ class TestCategoricalClassifier:
 
     def test_all_ordinal(self):
         """全部是有序变量"""
-        df = _make_df({
-            "education": ["小学", "本科"],
-            "satisfaction": ["满意", "不满意"],
-        })
-        profile = _make_profile([
-            ("education", "string", ["小学", "本科"]),
-            ("satisfaction", "string", ["满意", "不满意"]),
-        ])
+        df = _make_df(
+            {
+                "education": ["小学", "本科"],
+                "satisfaction": ["满意", "不满意"],
+            }
+        )
+        profile = _make_profile(
+            [
+                ("education", "string", ["小学", "本科"]),
+                ("satisfaction", "string", ["满意", "不满意"]),
+            ]
+        )
 
-        mock = SequenceMockAI([
-            "education,satisfaction",
-            "education:小学>本科;satisfaction:不满意>满意",
-        ])
+        mock = SequenceMockAI(
+            [
+                "education,satisfaction",
+                "education:小学>本科;satisfaction:不满意>满意",
+            ]
+        )
         result = CategoricalClassifier(mock).classify(df, profile)
 
         assert set(result.ordinal.keys()) == {"education", "satisfaction"}
@@ -356,15 +368,19 @@ class TestCategoricalClassifier:
     def test_ai_output_with_extra_text(self):
         """AI 输出包含多余空白和中文逗号时，校验应能处理"""
         df = _make_df({"gender": ["M", "F"], "city": ["北京", "上海"]})
-        profile = _make_profile([
-            ("gender", "string", ["M", "F"]),
-            ("city", "string", ["北京", "上海"]),
-        ])
+        profile = _make_profile(
+            [
+                ("gender", "string", ["M", "F"]),
+                ("city", "string", ["北京", "上海"]),
+            ]
+        )
 
-        mock = SequenceMockAI([
-            " gender，city \n",  # 中文逗号 + 首尾空白
-            "无",
-        ])
+        mock = SequenceMockAI(
+            [
+                " gender，city \n",  # 中文逗号 + 首尾空白
+                "无",
+            ]
+        )
         result = CategoricalClassifier(mock).classify(df, profile)
 
         assert set(result.nominal) == {"gender", "city"}

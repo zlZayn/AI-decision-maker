@@ -26,8 +26,10 @@ from signalchain.pipeline import SignalChainPipeline
 
 def create_pipeline() -> SignalChainPipeline:
     client = DeepSeekV4Client(
-        model=SYSTEM2_MODEL, api_key=SYSTEM2_API_KEY,
-        base_url=SYSTEM2_BASE_URL, thinking=False,
+        model=SYSTEM2_MODEL,
+        api_key=SYSTEM2_API_KEY,
+        base_url=SYSTEM2_BASE_URL,
+        thinking=False,
     )
     return SignalChainPipeline(ai_client=client, cache_file=":memory:")
 

@@ -29,8 +29,8 @@ def _clean_text(val):
     if pd.isna(val):
         return None
     s = str(val)
-    s = MEANINGLESS_SYMBOLS.sub("", s)   # 移除无意义符号
-    s = re.sub(r"\s+", " ", s).strip()    # 合并多余空格
+    s = MEANINGLESS_SYMBOLS.sub("", s)  # 移除无意义符号
+    s = re.sub(r"\s+", " ", s).strip()  # 合并多余空格
     return s if s else None
 
 
@@ -40,7 +40,9 @@ class QualityReport:
 
     def record(self, col_name: str, op_name: str, changed: int, errors: int) -> None:
         self.records.append(
-            FieldReport(col_name=col_name, op_name=op_name, changed=changed, errors=errors)
+            FieldReport(
+                col_name=col_name, op_name=op_name, changed=changed, errors=errors
+            )
         )
 
     def summary(self) -> str:
@@ -49,7 +51,9 @@ class QualityReport:
         total_errors = 0
         for r in self.records:
             status = "[OK]" if r.errors == 0 else "[ERR]"
-            lines.append(f"  {status} {r.col_name:20s} | {r.op_name:25s} | changed={r.changed} errors={r.errors}")
+            lines.append(
+                f"  {status} {r.col_name:20s} | {r.op_name:25s} | changed={r.changed} errors={r.errors}"
+            )
             total_changed += r.changed
             total_errors += r.errors
         lines.append("-" * 60)
@@ -103,7 +107,9 @@ def execute_pipeline(
                     skip_cols.add(col_name)
                     for c in output.columns:
                         if c != col_name:
-                            changed = int((pd.Series([None] * len(result)) != output[c]).sum())
+                            changed = int(
+                                (pd.Series([None] * len(result)) != output[c]).sum()
+                            )
                             report.record(c, op.name, changed=changed, errors=0)
                     report.record(col_name, op.name, changed=0, errors=0)
                 else:
@@ -116,7 +122,9 @@ def execute_pipeline(
                 report.record(col_name, op.name, changed=changed, errors=0)
 
         except Exception as e:  # noqa: BLE001 — 单字段算子失败只记 errors 不中断整列：算子失败面跨 pandas / 解析 / 用户自定义操作
-            logger.warning(f"Field '{col_name}' op '{op.name}' failed: {e}, keeping original")
+            logger.warning(
+                f"Field '{col_name}' op '{op.name}' failed: {e}, keeping original"
+            )
             report.record(col_name, op.name, changed=0, errors=1)
 
     return result, report

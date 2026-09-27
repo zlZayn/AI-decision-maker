@@ -99,7 +99,9 @@ class TestQuestionBuilding:
     def test_noul_defines_both_outcomes(self):
         """定义不清时 noul 的 0.5 无法解释，所以正反例都要写清"""
         profile = make_profile([("gender", ["男", "女"])])
-        criteria = build_categorical_questions(profile)[cat_question_id("gender")]["criteria"]
+        criteria = build_categorical_questions(profile)[cat_question_id("gender")][
+            "criteria"
+        ]
         assert set(criteria) == {"true", "false"}
 
     def test_ordinal_questions_are_noul_plus_scores(self):
@@ -117,7 +119,9 @@ class TestQuestionBuilding:
         values = [f"v{i}" for i in range(20)]
         questions = build_ordinal_questions(["wide"], {"wide": values}, max_levels=12)
         assert ordinal_question_id("wide") in questions
-        assert not any(qid.startswith(level_question_id("wide", "")) for qid in questions)
+        assert not any(
+            qid.startswith(level_question_id("wide", "")) for qid in questions
+        )
 
     def test_score_criteria_is_ordered_and_within_limits(self):
         questions = build_ordinal_questions(["education"], CASE, max_levels=12)
@@ -194,15 +198,23 @@ class TestClassification:
         """档位分数本身不确定时也不该判有序（第二道门）"""
         frame = pd.DataFrame({"x": ["a", "b", "c"]})
         profile = extract_profile(frame)
-        flat = {str(i): 1.0 / len(ORDINALITY_LEVELS) for i in range(len(ORDINALITY_LEVELS))}
+        flat = {
+            str(i): 1.0 / len(ORDINALITY_LEVELS) for i in range(len(ORDINALITY_LEVELS))
+        }
 
         def uncertain_handler(state, questions):
             return {
                 cat_question_id("x"): noul_answer_dict(0.95),
                 ordinal_question_id("x"): noul_answer_dict(0.95),
-                level_question_id("x", "a"): score_answer_dict(0.0, ORDINALITY_LEVELS, flat),
-                level_question_id("x", "b"): score_answer_dict(2.0, ORDINALITY_LEVELS, flat),
-                level_question_id("x", "c"): score_answer_dict(4.0, ORDINALITY_LEVELS, flat),
+                level_question_id("x", "a"): score_answer_dict(
+                    0.0, ORDINALITY_LEVELS, flat
+                ),
+                level_question_id("x", "b"): score_answer_dict(
+                    2.0, ORDINALITY_LEVELS, flat
+                ),
+                level_question_id("x", "c"): score_answer_dict(
+                    4.0, ORDINALITY_LEVELS, flat
+                ),
             }
 
         outcome = System1CategoricalClassifier(
@@ -261,7 +273,9 @@ class TestClassification:
         # 系统二说 gender 无序 → 采纳；education 由系统一判为有序 → 不被推翻
         assert "gender" in outcome.result.nominal
         assert outcome.result.ordinal == {"education": ["小学", "高中", "本科", "硕士"]}
-        assert any(r.escalated for r in outcome.decisions if r.subject.startswith("gender"))
+        assert any(
+            r.escalated for r in outcome.decisions if r.subject.startswith("gender")
+        )
 
     def test_summary_is_readable(self):
         profile = extract_profile(FRAME)
@@ -310,8 +324,8 @@ class TestStandalone:
             MockEvaluator(handler=_borderline_handler), fallback=None
         ).classify(FRAME, profile)
 
-        assert outcome.borderline == ["gender"]      # 仍然被记录
-        assert "gender" in outcome.result.nominal    # 但按概率照常采用
+        assert outcome.borderline == ["gender"]  # 仍然被记录
+        assert "gender" in outcome.result.nominal  # 但按概率照常采用
         assert outcome.result.ordinal == {"education": ["小学", "高中", "本科", "硕士"]}
         assert not any(r.escalated for r in outcome.decisions)
 

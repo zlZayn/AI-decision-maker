@@ -32,5 +32,5 @@ SYSTEM1_BASE_URL = "https://api.typesafe.ai"
 SYSTEM1_MODEL = "jev-latest"
 
 # ---- 门控阈值：系统一有多大把握才允许直接执行（certainty ∈ [0,1]）----
-SYSTEM1_ACCEPT = 0.80        # >= 0.80 直接采用
-SYSTEM1_ESCALATE = 0.55      # <  0.55 升级给系统二；中间带采用但标记 provisional
+SYSTEM1_ACCEPT = 0.80  # >= 0.80 直接采用
+SYSTEM1_ESCALATE = 0.55  # <  0.55 升级给系统二；中间带采用但标记 provisional

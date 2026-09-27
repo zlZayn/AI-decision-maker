@@ -12,10 +12,10 @@ from typing import Any
 class FieldProfile:
     """单字段的画像信息（Stage 0 输出的最小单元）"""
 
-    name: str              # 字段名，如 "gender"
-    type: str              # 数据类型，如 "string", "int", "float"
-    samples: list[str]     # 去重后的样本值，最多 20 个
-    null_ratio: float      # 缺失率，0.0 ~ 1.0
+    name: str  # 字段名，如 "gender"
+    type: str  # 数据类型，如 "string", "int", "float"
+    samples: list[str]  # 去重后的样本值，最多 20 个
+    null_ratio: float  # 缺失率，0.0 ~ 1.0
 
 
 @dataclass
@@ -58,10 +58,10 @@ class CacheEntry:
     它们回答"这条缓存当时是谁判的、有多确定"。老缓存文件缺这两个字段照样能读。
     """
 
-    scene_code: str          # 场景信号码，如 "S1"
-    signal_sequence: str     # 字段信号序列，如 "IGADN"
-    certainty: float = 0.0   # 场景决策时的把握程度（0 表示未知/老缓存）
-    engine: str = ""         # 决策来源，如 "system1" / "system2"
+    scene_code: str  # 场景信号码，如 "S1"
+    signal_sequence: str  # 字段信号序列，如 "IGADN"
+    certainty: float = 0.0  # 场景决策时的把握程度（0 表示未知/老缓存）
+    engine: str = ""  # 决策来源，如 "system1" / "system2"
 
     # 序列化归值对象自己管：缓存层不需要知道字段名，
     # 字段增删只会波及这一个文件。
@@ -113,11 +113,11 @@ class DecisionRecord:
       escalated   是否发生了升级（engine == "system2" 时为 True）
     """
 
-    question_id: str              # 问题标识，如 "scene" / "field:gender"
-    subject: str                  # 人类可读主体（字段名 / "scene"）
-    chosen: str                   # 最终选择（场景码 / 信号码 / 取值）
-    certainty: float              # 系统一把握程度 0.0~1.0
-    engine: str                   # "system1" | "system2"
+    question_id: str  # 问题标识，如 "scene" / "field:gender"
+    subject: str  # 人类可读主体（字段名 / "scene"）
+    chosen: str  # 最终选择（场景码 / 信号码 / 取值）
+    certainty: float  # 系统一把握程度 0.0~1.0
+    engine: str  # "system1" | "system2"
     probabilities: dict[str, float] = field(default_factory=dict)
     escalated: bool = False
     verdict: str = ""
@@ -135,10 +135,10 @@ class DecisionRecord:
 class SceneConfig:
     """场景配置（从路由表查表得到）"""
 
-    scene_name: str                     # 场景中文名，如 "医疗数据"
-    prompt_template: str                 # 字段语义识别的 Prompt 模板
-    valid_codes: set[str]               # 该场景下合法的字段信号码集合
-    operations: dict[str, str]          # 信号码 → 操作名映射，如 {"G": "normalize_gender"}
+    scene_name: str  # 场景中文名，如 "医疗数据"
+    prompt_template: str  # 字段语义识别的 Prompt 模板
+    valid_codes: set[str]  # 该场景下合法的字段信号码集合
+    operations: dict[str, str]  # 信号码 → 操作名映射，如 {"G": "normalize_gender"}
 
 
 # ============================================================
@@ -148,7 +148,19 @@ class SceneConfig:
 VALID_SCENE_CODES: set[str] = {"S0", "S1", "S2", "S3", "S4", "S5"}
 
 VALID_FIELD_CODES: set[str] = {
-    "G", "A", "D", "N", "C", "T", "M", "E", "P", "L", "R", "I", "X",
+    "G",
+    "A",
+    "D",
+    "N",
+    "C",
+    "T",
+    "M",
+    "E",
+    "P",
+    "L",
+    "R",
+    "I",
+    "X",
 }
 
 CODE_LABELS: dict[str, str] = {

@@ -55,7 +55,9 @@ def validate_field_signal_sequence(
         if ch in valid_codes:
             result_chars.append(ch)
         else:
-            logger.warning(f"Invalid signal code '{ch}' in sequence, replacing with 'X'")
+            logger.warning(
+                f"Invalid signal code '{ch}' in sequence, replacing with 'X'"
+            )
             result_chars.append("X")
 
     # 补齐长度

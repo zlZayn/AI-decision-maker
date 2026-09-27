@@ -61,7 +61,21 @@ SCENE_QUESTION_ID = "scene"
 FIELD_QUESTION_PREFIX = "field:"
 
 # 信号码的固定展示顺序 —— 保证 criteria 顺序稳定（可复现）
-CODE_ORDER: tuple[str, ...] = ("I", "G", "A", "D", "N", "C", "T", "M", "E", "P", "L", "R", "X")
+CODE_ORDER: tuple[str, ...] = (
+    "I",
+    "G",
+    "A",
+    "D",
+    "N",
+    "C",
+    "T",
+    "M",
+    "E",
+    "P",
+    "L",
+    "R",
+    "X",
+)
 
 # 各信号码的判据描述（系统一视角：模型读的是这些中文描述，答的是 ASCII 码）
 CODE_HINTS: dict[str, str] = {
@@ -150,7 +164,9 @@ def build_state(profile: DataProfile) -> dict[str, Any]:
     }
 
 
-def field_instructions(field: FieldProfile, hint_code: str | None = None) -> dict[str, Any]:
+def field_instructions(
+    field: FieldProfile, hint_code: str | None = None
+) -> dict[str, Any]:
     """单字段问题的结构化 instructions
 
     为什么把字段信息放进 instructions，而不是用 state 路径引用：
@@ -202,11 +218,15 @@ def build_questions(
             suffix = 2
             while f"{question_id}#{suffix}" in used_ids:
                 suffix += 1
-            logger.warning(f"重复字段名 {field_profile.name!r}，问题 id 追加后缀 #{suffix}")
+            logger.warning(
+                f"重复字段名 {field_profile.name!r}，问题 id 追加后缀 #{suffix}"
+            )
             question_id = f"{question_id}#{suffix}"
         used_ids.add(question_id)
         hint = FIELD_NAME_HINTS.get(field_profile.name.lower().strip())
-        questions[question_id] = choice(field_instructions(field_profile, hint), criteria)
+        questions[question_id] = choice(
+            field_instructions(field_profile, hint), criteria
+        )
     return questions
 
 
@@ -305,12 +325,16 @@ class System1Decider:
         if response is None:
             return None
 
-        scene_code, scene_certainty, scene_record = self._resolve_scene(response, profile)
+        scene_code, scene_certainty, scene_record = self._resolve_scene(
+            response, profile
+        )
         scene_config = ROUTING_TABLE.get(scene_code, ROUTING_TABLE["S0"])
 
         # ---- two_pass：用该场景的合法码重新问一遍字段 ----
         if not one_pass:
-            response = self._evaluate(state, self._field_questions(profile, scene_config))
+            response = self._evaluate(
+                state, self._field_questions(profile, scene_config)
+            )
             if response is None:
                 return None
 
@@ -333,7 +357,9 @@ class System1Decider:
 
     # ---- 步骤 ----
 
-    def _opening_questions(self, profile: DataProfile, one_pass: bool) -> dict[str, Any]:
+    def _opening_questions(
+        self, profile: DataProfile, one_pass: bool
+    ) -> dict[str, Any]:
         """第 1 次请求的问题
 
         one_pass：场景 + 全部字段一起问（speculative fan-out）
@@ -345,7 +371,9 @@ class System1Decider:
             )
         return {SCENE_QUESTION_ID: self._scene_question()}
 
-    def _field_questions(self, profile: DataProfile, scene_config: Any) -> dict[str, Any]:
+    def _field_questions(
+        self, profile: DataProfile, scene_config: Any
+    ) -> dict[str, Any]:
         """严格模式下的字段问题：criteria 限定为该场景的合法码"""
         return build_questions(
             profile,
@@ -368,7 +396,9 @@ class System1Decider:
             if answer is None:
                 logger.info(f"字段 {field_profile.name!r} 无答案，转入升级候选")
                 outcomes.append(
-                    _FieldOutcome(field_profile, code="X", certainty=0.0, verdict="escalate")
+                    _FieldOutcome(
+                        field_profile, code="X", certainty=0.0, verdict="escalate"
+                    )
                 )
                 continue
 
@@ -449,7 +479,9 @@ class System1Decider:
 
     # ---- 内部 ----
 
-    def _evaluate(self, state: Any, questions: Mapping[str, Any]) -> EvalResponse | None:
+    def _evaluate(
+        self, state: Any, questions: Mapping[str, Any]
+    ) -> EvalResponse | None:
         """发请求；引擎不可用则返回 None（降级信号）
 
         System1RequestError 刻意不在这里捕获 —— 那意味着我们的问题构造写错了，
@@ -462,7 +494,9 @@ class System1Decider:
             logger.warning(f"系统一不可用，回退系统二原路径：{exc}")
             return None
 
-    def _find_field_answer(self, response: EvalResponse, field_profile: FieldProfile) -> Answer | None:
+    def _find_field_answer(
+        self, response: EvalResponse, field_profile: FieldProfile
+    ) -> Answer | None:
         answer = response.answers.get(field_question_id(field_profile.name))
         if answer is not None:
             return answer
@@ -494,7 +528,9 @@ class System1Decider:
         if verdict != "escalate" or self.fallback is None:
             if verdict == "escalate":
                 # 无系统二可升级：保留系统一的答案，但用校验器兜底（与旧行为一致）
-                logger.warning(f"场景置信度 {cert:.3f} 偏低且未配置系统二，沿用 {choice_value}")
+                logger.warning(
+                    f"场景置信度 {cert:.3f} 偏低且未配置系统二，沿用 {choice_value}"
+                )
                 choice_value = validate_scene_code(choice_value)
             return choice_value, cert, record
 
@@ -538,5 +574,3 @@ class System1Decider:
         )
         logger.info(f"系统二批量裁决 {len(uncertain)} 个字段 -> {sequence}")
         return {f.name: code for f, code in zip(uncertain, sequence)}
-
-

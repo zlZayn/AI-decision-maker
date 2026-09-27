@@ -199,8 +199,7 @@ def main():
         if not ok:
             for col in df_on.columns:
                 if col in df_off.columns and (
-                    df_on[col].astype(str).tolist()
-                    != df_off[col].astype(str).tolist()
+                    df_on[col].astype(str).tolist() != df_off[col].astype(str).tolist()
                 ):
                     diff_cols.append(col)
         rows.append(

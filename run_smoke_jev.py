@@ -102,6 +102,7 @@ def _load_config() -> tuple[str, str, str]:
             SYSTEM1_BASE_URL,
             SYSTEM1_MODEL,
         )
+
         return SYSTEM1_API_KEY, SYSTEM1_BASE_URL, SYSTEM1_MODEL
     except (ImportError, OSError):
         return "", "https://api.typesafe.ai", "jev-latest"
@@ -110,8 +111,17 @@ def _load_config() -> tuple[str, str, str]:
 # 离线演示用：哪些变量"有公认顺序"。真值来自实测（docs/SYSTEM1_JEV.md）
 _OFFLINE_ORDINAL = {"education", "satisfaction", "severity", "rank"}
 _OFFLINE_CATEGORICAL = {
-    "gender", "sex", "SEX", "SEX/Gender", "DEPT", "department", "education",
-    "satisfaction", "severity", "rank", "blood_type",
+    "gender",
+    "sex",
+    "SEX",
+    "SEX/Gender",
+    "DEPT",
+    "department",
+    "education",
+    "satisfaction",
+    "severity",
+    "rank",
+    "blood_type",
 }
 
 
@@ -152,32 +162,61 @@ def _offline_evaluator() -> MockEvaluator:
                 else:
                     # 连通性检查：含 ASAP 的文本判为紧急
                     text = json.dumps(state, ensure_ascii=False)
-                    answers[question_id] = noul_answer_dict(0.93 if "ASAP" in text else 0.12)
+                    answers[question_id] = noul_answer_dict(
+                        0.93 if "ASAP" in text else 0.12
+                    )
             elif question["type"] == "choice":
                 criteria = list(question["criteria"].keys())
                 if question_id == SCENE_QUESTION_ID:
                     answers[question_id] = choice_answer_dict(
                         "S1" if "S1" in criteria else criteria[0],
-                        {code: (0.88 if code == "S1" else 0.12 / max(1, len(criteria) - 1)) for code in criteria},
+                        {
+                            code: (
+                                0.88
+                                if code == "S1"
+                                else 0.12 / max(1, len(criteria) - 1)
+                            )
+                            for code in criteria
+                        },
                     )
                 else:
                     name = json.dumps(question["instructions"], ensure_ascii=False)
                     picked = "X"
                     for probe, code in (
-                        ("SEX", "G"), ("Gender", "G"), ("AGE", "A"), ("DEPT", "D"),
-                        ("MED", "N"), ("PID", "I"), ("UID", "I"), ("TXN", "I"),
-                        ("AMOUNT", "M"), ("DATE", "T"), ("E-MAIL", "E"), ("PHONE", "P"),
+                        ("SEX", "G"),
+                        ("Gender", "G"),
+                        ("AGE", "A"),
+                        ("DEPT", "D"),
+                        ("MED", "N"),
+                        ("PID", "I"),
+                        ("UID", "I"),
+                        ("TXN", "I"),
+                        ("AMOUNT", "M"),
+                        ("DATE", "T"),
+                        ("E-MAIL", "E"),
+                        ("PHONE", "P"),
                     ):
                         if probe in name:
                             picked = code
                             break
                     answers[question_id] = choice_answer_dict(
                         picked,
-                        {code: (0.91 if code == picked else 0.09 / max(1, len(criteria) - 1)) for code in criteria},
+                        {
+                            code: (
+                                0.91
+                                if code == picked
+                                else 0.09 / max(1, len(criteria) - 1)
+                            )
+                            for code in criteria
+                        },
                     )
             elif question["type"] == "score":
                 instructions = question["instructions"]
-                value = instructions.get("value", "") if isinstance(instructions, dict) else ""
+                value = (
+                    instructions.get("value", "")
+                    if isinstance(instructions, dict)
+                    else ""
+                )
                 if value in ("小学", "很不满意", "轻微"):
                     position = 0.0
                 elif value in ("初中", "不满意", "轻度"):
@@ -199,7 +238,9 @@ def check_1_connectivity(evaluator: Evaluator) -> bool:
     print("  检查 1 / 连通性 + noul 语义")
     print(BAR)
 
-    state = {"message": "Our API integration is returning 500 errors and we cannot process orders. Please fix this ASAP."}
+    state = {
+        "message": "Our API integration is returning 500 errors and we cannot process orders. Please fix this ASAP."
+    }
     questions = {
         "urgent": noul(
             "这段话是否表达了时间紧迫性？",
@@ -226,8 +267,12 @@ def check_1_connectivity(evaluator: Evaluator) -> bool:
             f"  {question_id:<10s} noul={probability:.4f}  "
             f"certainty={noul_certainty(probability):.4f}"
         )
-    print(f"  model={response.model}  tokens: in={response.input_tokens} out={response.output_tokens}  {elapsed:.2f}s")
-    print("  语义校验：urgent 应显著高于 billing（urgent 句明确要求 ASAP，billing 句谈的是故障）")
+    print(
+        f"  model={response.model}  tokens: in={response.input_tokens} out={response.output_tokens}  {elapsed:.2f}s"
+    )
+    print(
+        "  语义校验：urgent 应显著高于 billing（urgent 句明确要求 ASAP，billing 句谈的是故障）"
+    )
     urgent = response.answers.get("urgent")
     billing = response.answers.get("billing")
     ok = bool(urgent and billing and (urgent.noul or 0) > (billing.noul or 0))
@@ -241,7 +286,9 @@ def check_2_dataset(evaluator: Evaluator, filename: str) -> None:
     profile = extract_profile(df)
 
     print(f"\n{BAR}")
-    print(f"  检查 2 / 真实数据集 {filename}  ({len(df)} 行 x {profile.field_count} 列)")
+    print(
+        f"  检查 2 / 真实数据集 {filename}  ({len(df)} 行 x {profile.field_count} 列)"
+    )
     print(BAR)
 
     state = build_state(profile)
@@ -251,14 +298,20 @@ def check_2_dataset(evaluator: Evaluator, filename: str) -> None:
     response = evaluator.evaluate(state, questions)
     elapsed = time.time() - started
 
-    print(f"  请求：1 次  |  问题数：{len(questions)}（1 场景 + {profile.field_count} 字段）"
-          f"  |  {elapsed:.2f}s")
-    print(f"  输入 token（引擎自报，唯一可比口径） = {response.input_tokens}"
-          f"  |  输出 = {response.output_tokens}（不计费）")
+    print(
+        f"  请求：1 次  |  问题数：{len(questions)}（1 场景 + {profile.field_count} 字段）"
+        f"  |  {elapsed:.2f}s"
+    )
+    print(
+        f"  输入 token（引擎自报，唯一可比口径） = {response.input_tokens}"
+        f"  |  输出 = {response.output_tokens}（不计费）"
+    )
 
     scene_answer = response.answers.get(SCENE_QUESTION_ID)
     if scene_answer is not None:
-        print(f"\n  场景：{scene_answer.choice}  ({_fmt_probs(dict(scene_answer.probabilities))})")
+        print(
+            f"\n  场景：{scene_answer.choice}  ({_fmt_probs(dict(scene_answer.probabilities))})"
+        )
     else:
         print("\n  场景：无答案")
 
@@ -267,7 +320,9 @@ def check_2_dataset(evaluator: Evaluator, filename: str) -> None:
     for field_profile in profile.fields:
         answer = response.answers.get(field_question_id(field_profile.name))
         if answer is None:
-            print(f"  {_pad(field_profile.name, 18)} {'-':<4s} {'无答案':<34s} {', '.join(field_profile.samples[:3])}")
+            print(
+                f"  {_pad(field_profile.name, 18)} {'-':<4s} {'无答案':<34s} {', '.join(field_profile.samples[:3])}"
+            )
             continue
         samples = ", ".join(field_profile.samples[:3])
         print(
@@ -282,19 +337,27 @@ def check_3_ordinality(evaluator: Evaluator) -> None:
     print(BAR)
 
     state = {
-        "variables": {name: {"values": values} for name, values in ORDINAL_CASES.items()}
+        "variables": {
+            name: {"values": values} for name, values in ORDINAL_CASES.items()
+        }
     }
     questions = build_ordinal_questions(list(ORDINAL_CASES.keys()), ORDINAL_CASES)
 
     started = time.time()
     response = evaluator.evaluate(state, questions)
     elapsed = time.time() - started
-    print(f"  请求：1 次  |  问题数：{len(questions)}"
-          f"（{len(ORDINAL_CASES)} 个有序性 noul + 逐值 score）  |  {elapsed:.2f}s  |  "
-          f"tokens in={response.input_tokens} out={response.output_tokens}")
+    print(
+        f"  请求：1 次  |  问题数：{len(questions)}"
+        f"（{len(ORDINAL_CASES)} 个有序性 noul + 逐值 score）  |  {elapsed:.2f}s  |  "
+        f"tokens in={response.input_tokens} out={response.output_tokens}"
+    )
 
-    print(f"  {'变量':<14s} {'P(有序)':>8s} {'cert':>6s} {'离散度':>7s} {'档位确定度':>10s}  判定  顺序")
-    print(f"  {'-' * 14} {'-' * 8} {'-' * 6} {'-' * 7} {'-' * 10}  {'-' * 6} {'-' * 40}")
+    print(
+        f"  {'变量':<14s} {'P(有序)':>8s} {'cert':>6s} {'离散度':>7s} {'档位确定度':>10s}  判定  顺序"
+    )
+    print(
+        f"  {'-' * 14} {'-' * 8} {'-' * 6} {'-' * 7} {'-' * 10}  {'-' * 6} {'-' * 40}"
+    )
     hits = 0
     for name, values in ORDINAL_CASES.items():
         ordinal_answer = response.answers.get(ordinal_question_id(name))
@@ -314,9 +377,13 @@ def check_3_ordinality(evaluator: Evaluator) -> None:
             scored.append((value, float(answer.score)))
             level_certainties.append(certainty(answer))
 
-        spread = (max(s for _, s in scored) - min(s for _, s in scored)) if scored else 0.0
+        spread = (
+            (max(s for _, s in scored) - min(s for _, s in scored)) if scored else 0.0
+        )
         mean_level_certainty = (
-            sum(level_certainties) / len(level_certainties) if level_certainties else 0.0
+            sum(level_certainties) / len(level_certainties)
+            if level_certainties
+            else 0.0
         )
         # 与 categorical_system1.System1CategoricalClassifier 的判定条件保持一致
         is_ordinal = (
@@ -338,8 +405,10 @@ def check_3_ordinality(evaluator: Evaluator) -> None:
             f"  {_pad(name, 14)} {probability:>8.3f} {cert:>6.3f} {spread:>7.2f} "
             f"{mean_level_certainty:>10.3f}  {'OK  ' if hit else 'MISS'} {verdict:<4s} {chain}"
         )
-    print(f"\n  判定命中：{hits}/{len(ORDINAL_CASES)}"
-          f"  （期望：education / satisfaction / severity 有序，gender / blood_type 无序）")
+    print(
+        f"\n  判定命中：{hits}/{len(ORDINAL_CASES)}"
+        f"  （期望：education / satisfaction / severity 有序，gender / blood_type 无序）"
+    )
 
 
 def check_4_categorical(evaluator: Evaluator, filename: str) -> None:
@@ -374,8 +443,10 @@ def check_4_categorical(evaluator: Evaluator, filename: str) -> None:
     started = time.time()
     response = evaluator.evaluate(state, questions)
     elapsed = time.time() - started
-    print(f"  请求：1 次  |  问题数：{len(questions)}  |  {elapsed:.2f}s  |  "
-          f"tokens in={response.input_tokens} out={response.output_tokens}")
+    print(
+        f"  请求：1 次  |  问题数：{len(questions)}  |  {elapsed:.2f}s  |  "
+        f"tokens in={response.input_tokens} out={response.output_tokens}"
+    )
 
     print(f"  {'字段':<18s} {'P(是分类变量)':>14s} {'certainty':>10s}  判定")
     print(f"  {'-' * 18} {'-' * 14} {'-' * 10}  {'-' * 10}")
@@ -410,15 +481,23 @@ def main() -> None:
         evaluator = _offline_evaluator()
         print("  模式：离线（MockEvaluator，不联网、不消耗额度）")
     else:
-        evaluator = JevEvaluator(api_key=api_key or None, base_url=base_url or None, model=model or None)
+        evaluator = JevEvaluator(
+            api_key=api_key or None, base_url=base_url or None, model=model or None
+        )
         print(f"  模式：在线  |  model={model}  |  base_url={base_url}")
-        print(f"  API Key：{'已配置 len=' + str(len(api_key)) if api_key else '未配置'}")
+        print(
+            f"  API Key：{'已配置 len=' + str(len(api_key)) if api_key else '未配置'}"
+        )
         if not api_key:
             print("\n  [ERR] config.py 里的 SYSTEM1_API_KEY 为空。")
-            print("        先跑离线模式看链路：uv run python run_smoke_jev.py --offline")
+            print(
+                "        先跑离线模式看链路：uv run python run_smoke_jev.py --offline"
+            )
             sys.exit(1)
         if not evaluator.available():
-            print("\n  [ERR] 系统一不可用（未安装 typesafe-sdk？请执行 uv sync --extra system1）")
+            print(
+                "\n  [ERR] 系统一不可用（未安装 typesafe-sdk？请执行 uv sync --extra system1）"
+            )
             sys.exit(1)
 
     started = time.time()

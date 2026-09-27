@@ -39,13 +39,15 @@ class TestSignalChainPipeline:
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
             pipeline = SignalChainPipeline(ai_client=mock_ai, cache_file=f.name)
 
-            df = pd.DataFrame({
-                "patient_id": ["P001", "P002"],
-                "gender": ["M", "F"],
-                "age": ["30", "30岁"],
-                "dept_name": ["心内", "外科"],
-                "drug_name": ["阿莫西林", "甲硝唑"],
-            })
+            df = pd.DataFrame(
+                {
+                    "patient_id": ["P001", "P002"],
+                    "gender": ["M", "F"],
+                    "age": ["30", "30岁"],
+                    "dept_name": ["心内", "外科"],
+                    "drug_name": ["阿莫西林", "甲硝唑"],
+                }
+            )
 
             result, _report = pipeline.run(df)
 
@@ -71,13 +73,15 @@ class TestSignalChainPipeline:
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
             pipeline = SignalChainPipeline(ai_client=mock_ai, cache_file=f.name)
 
-            df = pd.DataFrame({
-                "patient_id": ["P001", "P002"],
-                "gender": ["M", "F"],
-                "age": ["30", "30岁"],
-                "dept_name": ["心内", "外科"],
-                "drug_name": ["阿莫西林", "甲硝唑"],
-            })
+            df = pd.DataFrame(
+                {
+                    "patient_id": ["P001", "P002"],
+                    "gender": ["M", "F"],
+                    "age": ["30", "30岁"],
+                    "dept_name": ["心内", "外科"],
+                    "drug_name": ["阿莫西林", "甲硝唑"],
+                }
+            )
 
             # 第一次运行
             pipeline.run(df)
@@ -92,13 +96,15 @@ class TestSignalChainPipeline:
 
     def test_run_local_mode(self):
         """本地模式测试（跳过 AI）"""
-        df = pd.DataFrame({
-            "patient_id": ["P001", "P002"],
-            "gender": ["M", "F"],
-            "age": ["30", "30岁"],
-            "dept_name": ["心内", "外科"],
-            "drug_name": ["阿莫西林", "甲硝唑"],
-        })
+        df = pd.DataFrame(
+            {
+                "patient_id": ["P001", "P002"],
+                "gender": ["M", "F"],
+                "age": ["30", "30岁"],
+                "dept_name": ["心内", "外科"],
+                "drug_name": ["阿莫西林", "甲硝唑"],
+            }
+        )
 
         result, _report = SignalChainPipeline.run_local(df, "S1", "IGADN")
 
@@ -112,10 +118,12 @@ class TestSignalChainPipeline:
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
             pipeline = SignalChainPipeline(ai_client=mock_ai, cache_file=f.name)
 
-            df = pd.DataFrame({
-                "col1": ["a", "b"],
-                "col2": ["c", "d"],
-            })
+            df = pd.DataFrame(
+                {
+                    "col1": ["a", "b"],
+                    "col2": ["c", "d"],
+                }
+            )
 
             result, _report = pipeline.run(df)
 

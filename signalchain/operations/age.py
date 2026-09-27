@@ -10,22 +10,67 @@ from signalchain.operations.base import Operation
 
 # 英文数字单词映射
 EN_NUMBERS = {
-    "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4,
-    "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
-    "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15,
-    "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19, "twenty": 20,
-    "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70,
-    "eighty": 80, "ninety": 90, "hundred": 100,
+    "zero": 0,
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    "eleven": 11,
+    "twelve": 12,
+    "thirteen": 13,
+    "fourteen": 14,
+    "fifteen": 15,
+    "sixteen": 16,
+    "seventeen": 17,
+    "eighteen": 18,
+    "nineteen": 19,
+    "twenty": 20,
+    "thirty": 30,
+    "forty": 40,
+    "fifty": 50,
+    "sixty": 60,
+    "seventy": 70,
+    "eighty": 80,
+    "ninety": 90,
+    "hundred": 100,
 }
 
 # 中文数字映射
 CN_NUMBERS = {
-    "零": 0, "一": 1, "二": 2, "三": 3, "四": 4, "五": 5,
-    "六": 6, "七": 7, "八": 8, "九": 9, "十": 10,
-    "十一": 11, "十二": 12, "十三": 13, "十四": 14, "十五": 15,
-    "十六": 16, "十七": 17, "十八": 18, "十九": 19, "二十": 20,
-    "三十": 30, "四十": 40, "五十": 50, "六十": 60, "七十": 70,
-    "八十": 80, "九十": 90,
+    "零": 0,
+    "一": 1,
+    "二": 2,
+    "三": 3,
+    "四": 4,
+    "五": 5,
+    "六": 6,
+    "七": 7,
+    "八": 8,
+    "九": 9,
+    "十": 10,
+    "十一": 11,
+    "十二": 12,
+    "十三": 13,
+    "十四": 14,
+    "十五": 15,
+    "十六": 16,
+    "十七": 17,
+    "十八": 18,
+    "十九": 19,
+    "二十": 20,
+    "三十": 30,
+    "四十": 40,
+    "五十": 50,
+    "六十": 60,
+    "七十": 70,
+    "八十": 80,
+    "九十": 90,
 }
 
 
@@ -35,10 +80,10 @@ def _parse_number_word(s: str) -> int | None:
     # 去除常见前后缀
     for prefix in ("约", "大概", "around", "about", "approximately"):
         if raw.startswith(prefix):
-            raw = raw[len(prefix):].strip()
+            raw = raw[len(prefix) :].strip()
     for suffix in ("岁", "年", "岁龄", "years", "years old", "year old", "y/o"):
         if raw.endswith(suffix):
-            raw = raw[:len(raw) - len(suffix)].strip()
+            raw = raw[: len(raw) - len(suffix)].strip()
     if not raw:
         return None
 

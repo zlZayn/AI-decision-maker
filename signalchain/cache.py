@@ -76,7 +76,9 @@ class _Namespace:
         return {"fingerprint": self.fingerprint, "entries": self.entries}
 
     @classmethod
-    def from_payload(cls, payload: object, expected: str, name: str) -> _Namespace | None:
+    def from_payload(
+        cls, payload: object, expected: str, name: str
+    ) -> _Namespace | None:
         """还原一个分区；结构非法或配置指纹不匹配时返回 None"""
         if not isinstance(payload, dict):
             return None
@@ -92,9 +94,9 @@ class _Namespace:
 class SignalCache:
     """按决策引擎分区的指纹缓存
 
-        cache = SignalCache("signal_cache.json", namespace=engine_id)
-        cache.put(fingerprint, CacheEntry("S1", "IGADN", certainty=1.0, engine="system1"))
-        entry = cache.get(fingerprint)
+    cache = SignalCache("signal_cache.json", namespace=engine_id)
+    cache.put(fingerprint, CacheEntry("S1", "IGADN", certainty=1.0, engine="system1"))
+    entry = cache.get(fingerprint)
     """
 
     def __init__(
@@ -138,7 +140,9 @@ class SignalCache:
             (fingerprint, CacheEntry.from_payload(payload))
             for fingerprint, payload in self._entries.items()
         )
-        return [(fingerprint, entry) for fingerprint, entry in restored if entry is not None]
+        return [
+            (fingerprint, entry) for fingerprint, entry in restored if entry is not None
+        ]
 
     def namespaces(self) -> list[str]:
         """缓存文件里现有哪些引擎的分区"""

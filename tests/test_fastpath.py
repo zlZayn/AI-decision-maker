@@ -154,9 +154,10 @@ class TestBuildQuestions:
             profile, include_scene=False, codes=ROUTING_TABLE["S1"].valid_codes
         )
         assert SCENE_QUESTION_ID not in questions
-        assert set(questions[field_question_id("gender")]["criteria"]) == ROUTING_TABLE[
-            "S1"
-        ].valid_codes
+        assert (
+            set(questions[field_question_id("gender")]["criteria"])
+            == ROUTING_TABLE["S1"].valid_codes
+        )
 
     def test_duplicate_field_names_get_distinct_ids(self):
         """DataFrame 允许重名列；不处理的话两列会拿到同一个答案"""
@@ -229,7 +230,9 @@ class TestSystem1Decider:
 
         # 升级时系统二只被调用一次（问那个子集），所以替身必须"永远返回序列"
         fallback = MockAIClient(responses={"选项": "G"})
-        decider = System1Decider(MockEvaluator(handler=handler), fallback_client=fallback)
+        decider = System1Decider(
+            MockEvaluator(handler=handler), fallback_client=fallback
+        )
         result = decider.decide(profile)
 
         assert result is not None
@@ -285,7 +288,9 @@ class TestSystem1Decider:
             return answers
 
         fallback = TwoCallMockAI(scene_code="S2", signal_sequence="I")
-        decider = System1Decider(MockEvaluator(handler=handler), fallback_client=fallback)
+        decider = System1Decider(
+            MockEvaluator(handler=handler), fallback_client=fallback
+        )
         result = decider.decide(profile)
         assert result is not None
         assert result.scene_code == "S2"
@@ -306,9 +311,10 @@ class TestSystem1Decider:
         assert len(evaluator.call_log) == 2
         _, second_questions = evaluator.call_log[1]
         assert SCENE_QUESTION_ID not in second_questions
-        assert set(second_questions[field_question_id("gender")]["criteria"]) == ROUTING_TABLE[
-            "S1"
-        ].valid_codes
+        assert (
+            set(second_questions[field_question_id("gender")]["criteria"])
+            == ROUTING_TABLE["S1"].valid_codes
+        )
 
     def test_result_summary_is_readable(self):
         profile = extract_profile(medical_frame())
@@ -398,7 +404,10 @@ class TestPipelineIntegration:
             assert pipeline_s1_again.decisions[0].engine == "cache"
 
             # 两个分区同时存在于同一个缓存文件
-            assert SignalCache(path, namespace="system2").namespaces() == ["mock:jev", "system2"]
+            assert SignalCache(path, namespace="system2").namespaces() == [
+                "mock:jev",
+                "system2",
+            ]
 
     def test_cache_hit_records_decision_with_engine_cache(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -489,11 +498,11 @@ class TestDecoupling:
             )
             result, _ = pipeline.run(frame)
 
-            assert system2.call_log == []          # 系统二完全没参与
-            assert result["department"].iloc[0] == "心内科"   # 置信字段照常清洗
+            assert system2.call_log == []  # 系统二完全没参与
+            assert result["department"].iloc[0] == "心内科"  # 置信字段照常清洗
             age_record = next(r for r in pipeline.decisions if r.subject == "age")
             assert age_record.verdict == "escalate"
-            assert age_record.escalated is False   # 未被升级
+            assert age_record.escalated is False  # 未被升级
             assert age_record.engine == "system1"
 
     def test_standalone_keeps_system1_scene_answer(self):

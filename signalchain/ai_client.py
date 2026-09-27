@@ -116,16 +116,9 @@ class DeepSeekV4Client(OpenAIClient):
         thinking_level: str = "high",
     ):
         if thinking:
-            extra_body = {
-                "thinking": {
-                    "type": "enabled",
-                    "level": thinking_level
-                }
-            }
+            extra_body = {"thinking": {"type": "enabled", "level": thinking_level}}
         else:
-            extra_body = {
-                "thinking": {"type": "disabled"}
-            }
+            extra_body = {"thinking": {"type": "disabled"}}
 
         super().__init__(
             model=model,

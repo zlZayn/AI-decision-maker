@@ -35,7 +35,9 @@ class TestConfidenceMath:
 
     def test_uniform_distribution_is_zero(self):
         # n 个选项全均匀 → 与随机猜测无异 → 0
-        assert choice_confidence({str(i): 1 / 13 for i in range(13)}) == pytest.approx(0.0)
+        assert choice_confidence({str(i): 1 / 13 for i in range(13)}) == pytest.approx(
+            0.0
+        )
 
     def test_single_option_is_one(self):
         assert choice_confidence({"only": 1.0}) == 1.0
@@ -46,7 +48,9 @@ class TestConfidenceMath:
 
     def test_matches_documented_formula_for_three_options(self):
         # 官方文档示例：(3 × 0.9 − 1) / 2 = 0.85
-        assert choice_confidence({"a": 0.9, "b": 0.06, "c": 0.04}) == pytest.approx(0.85)
+        assert choice_confidence({"a": 0.9, "b": 0.06, "c": 0.04}) == pytest.approx(
+            0.85
+        )
 
     def test_option_count_is_normalised_away(self):
         """同一个 peak，在不同选项数下 confidence 不同 —— 这正是它可比的原因
@@ -198,7 +202,12 @@ class TestToAnswer:
 
     def test_dict_choice(self):
         answer = _to_answer(
-            {"type": "choice", "choice": "G", "probabilities": {"G": 1.0}, "confidence": 0.9}
+            {
+                "type": "choice",
+                "choice": "G",
+                "probabilities": {"G": 1.0},
+                "confidence": 0.9,
+            }
         )
         assert answer.type == "choice"
         assert answer.choice == "G"
@@ -243,7 +252,9 @@ class TestQuestionBuilders:
         assert noul("是不是？") == {"type": "noul", "instructions": "是不是？"}
 
     def test_noul_with_criteria(self):
-        question = noul("是不是？", true_description="是的样子", false_description="否的样子")
+        question = noul(
+            "是不是？", true_description="是的样子", false_description="否的样子"
+        )
         assert question["criteria"] == {"true": "是的样子", "false": "否的样子"}
 
     def test_choice(self):
@@ -315,7 +326,9 @@ class TestJevEvaluatorAvailability:
         assert evaluator.available() is False
 
     def test_engine_id_includes_model(self):
-        assert JevEvaluator(api_key="k", model="jev-latest").engine_id == "jev:jev-latest"
+        assert (
+            JevEvaluator(api_key="k", model="jev-latest").engine_id == "jev:jev-latest"
+        )
 
     def test_engine_id_defaults(self):
         assert JevEvaluator(api_key="k").engine_id == "jev:latest"

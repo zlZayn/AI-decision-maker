@@ -9,11 +9,13 @@ class TestExtractProfile:
     """测试 extract_profile 函数"""
 
     def test_basic_dataframe(self):
-        df = pd.DataFrame({
-            "name": ["Alice", "Bob", "Charlie"],
-            "age": [25, 30, 35],
-            "score": [85.5, 92.3, 78.1],
-        })
+        df = pd.DataFrame(
+            {
+                "name": ["Alice", "Bob", "Charlie"],
+                "age": [25, 30, 35],
+                "score": [85.5, 92.3, 78.1],
+            }
+        )
         profile = extract_profile(df)
 
         assert profile.field_count == 3
@@ -23,19 +25,23 @@ class TestExtractProfile:
         assert profile.fields[2].type == "float"
 
     def test_null_ratio(self):
-        df = pd.DataFrame({
-            "col1": [1, None, 3, None, 5],
-            "col2": ["a", "b", "c", "d", "e"],
-        })
+        df = pd.DataFrame(
+            {
+                "col1": [1, None, 3, None, 5],
+                "col2": ["a", "b", "c", "d", "e"],
+            }
+        )
         profile = extract_profile(df)
 
         assert profile.fields[0].null_ratio == 0.4  # 2/5
         assert profile.fields[1].null_ratio == 0.0
 
     def test_samples_dedup(self):
-        df = pd.DataFrame({
-            "col": ["a", "b", "a", "c", "b", "a"],
-        })
+        df = pd.DataFrame(
+            {
+                "col": ["a", "b", "a", "c", "b", "a"],
+            }
+        )
         profile = extract_profile(df)
 
         # 去重后的样本
@@ -43,9 +49,11 @@ class TestExtractProfile:
         assert set(profile.fields[0].samples) == {"a", "b", "c"}
 
     def test_samples_max_limit(self):
-        df = pd.DataFrame({
-            "col": [str(i) for i in range(30)],
-        })
+        df = pd.DataFrame(
+            {
+                "col": [str(i) for i in range(30)],
+            }
+        )
         profile = extract_profile(df, max_samples=20)
 
         assert len(profile.fields[0].samples) == 20
@@ -58,11 +66,13 @@ class TestExtractProfile:
         assert profile.fields == []
 
     def test_derived_properties(self):
-        df = pd.DataFrame({
-            "name": ["Alice", "Bob"],
-            "age": [25, 30],
-            "score": [85.5, 92.3],
-        })
+        df = pd.DataFrame(
+            {
+                "name": ["Alice", "Bob"],
+                "age": [25, 30],
+                "score": [85.5, 92.3],
+            }
+        )
         profile = extract_profile(df)
 
         assert profile.type_summary == "1string,1int,1float"

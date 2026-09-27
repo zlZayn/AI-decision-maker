@@ -13,24 +13,28 @@ def demo_medical_data():
     print("=" * 60)
 
     # 构建模拟 AI 客户端（实际使用时替换为 DeepSeekV4Client）
-    mock_ai = MockAIClient(responses={
-        # 场景识别 Prompt 包含 "场景代码" → 返回 S1
-        "场景代码": "S1",
-        # 字段语义识别 Prompt 包含 "规则" → 返回 IGADN
-        "规则": "IGADN",
-    })
+    mock_ai = MockAIClient(
+        responses={
+            # 场景识别 Prompt 包含 "场景代码" → 返回 S1
+            "场景代码": "S1",
+            # 字段语义识别 Prompt 包含 "规则" → 返回 IGADN
+            "规则": "IGADN",
+        }
+    )
 
     # 创建管线
     pipeline = SignalChainPipeline(ai_client=mock_ai, cache_file=":memory:")
 
     # 构建测试数据
-    df = pd.DataFrame({
-        "patient_id": ["P001", "P002", "P003", "P004"],
-        "gender": ["M", "F", "Male", "帅哥"],
-        "age": ["30", "30岁", "约30", "25Y"],
-        "dept_name": ["心内", "外科", "妇科", "ICU"],
-        "drug_name": ["阿莫西林0.25g", "甲硝唑", "未知药品", "头孢"],
-    })
+    df = pd.DataFrame(
+        {
+            "patient_id": ["P001", "P002", "P003", "P004"],
+            "gender": ["M", "F", "Male", "帅哥"],
+            "age": ["30", "30岁", "约30", "25Y"],
+            "dept_name": ["心内", "外科", "妇科", "ICU"],
+            "drug_name": ["阿莫西林0.25g", "甲硝唑", "未知药品", "头孢"],
+        }
+    )
 
     print("\n原始数据：")
     print(df.to_string())
@@ -56,16 +60,20 @@ def demo_local_mode():
     print("SignalChain 本地模式示例")
     print("=" * 60)
 
-    df = pd.DataFrame({
-        "patient_id": ["P001", "P002"],
-        "gender": ["M", "F"],
-        "age": ["30", "30岁"],
-        "dept_name": ["心内", "外科"],
-        "drug_name": ["阿莫西林", "甲硝唑"],
-    })
+    df = pd.DataFrame(
+        {
+            "patient_id": ["P001", "P002"],
+            "gender": ["M", "F"],
+            "age": ["30", "30岁"],
+            "dept_name": ["心内", "外科"],
+            "drug_name": ["阿莫西林", "甲硝唑"],
+        }
+    )
 
     # 直接指定场景码和信号序列，跳过 AI
-    result, report = SignalChainPipeline.run_local(df, scene_code="S1", signal_sequence="IGADN")
+    result, report = SignalChainPipeline.run_local(
+        df, scene_code="S1", signal_sequence="IGADN"
+    )
 
     print("\n清洗后数据：")
     print(result.to_string())
@@ -78,20 +86,24 @@ def demo_user_data():
     print("SignalChain 用户数据清洗示例")
     print("=" * 60)
 
-    mock_ai = MockAIClient(responses={
-        "场景代码": "S3",
-        "规则": "IGAEP",
-    })
+    mock_ai = MockAIClient(
+        responses={
+            "场景代码": "S3",
+            "规则": "IGAEP",
+        }
+    )
 
     pipeline = SignalChainPipeline(ai_client=mock_ai, cache_file=":memory:")
 
-    df = pd.DataFrame({
-        "user_id": ["U001", "U002", "U003"],
-        "gender": ["男", "F", "1"],
-        "age": ["25", "30岁", "约28"],
-        "email": ["test@example.com", "invalid-email", "user@mail.cn"],
-        "phone": ["13800138000", "12345", "13912345678"],
-    })
+    df = pd.DataFrame(
+        {
+            "user_id": ["U001", "U002", "U003"],
+            "gender": ["男", "F", "1"],
+            "age": ["25", "30岁", "约28"],
+            "email": ["test@example.com", "invalid-email", "user@mail.cn"],
+            "phone": ["13800138000", "12345", "13912345678"],
+        }
+    )
 
     print("\n原始数据：")
     print(df.to_string())

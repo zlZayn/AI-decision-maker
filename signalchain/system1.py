@@ -42,7 +42,9 @@ logger = logging.getLogger(__name__)
 # 官方 Python SDK 的发行名。注意：PyPI 上的 "typesafe" 是无关的第三方装饰器库，
 # "jev" 是官方装饰器层但要求 Python >= 3.14（本项目 3.12，装不了）。只有它是正确的。
 SDK_PACKAGE = "typesafe-sdk"
-SDK_INSTALL_HINT = f"请安装官方 SDK: uv sync --extra system1（等价于 uv add {SDK_PACKAGE}）"
+SDK_INSTALL_HINT = (
+    f"请安装官方 SDK: uv sync --extra system1（等价于 uv add {SDK_PACKAGE}）"
+)
 API_KEY_ENV = "TYPESAFE_API_KEY"
 
 
@@ -203,7 +205,9 @@ def condition_choice(answer: Answer, allowed: Iterable[str]) -> Answer:
     if not allowed_list:
         return answer
 
-    restricted = {key: float(answer.probabilities.get(key, 0.0)) for key in allowed_list}
+    restricted = {
+        key: float(answer.probabilities.get(key, 0.0)) for key in allowed_list
+    }
     total = sum(restricted.values())
     if total <= 0.0:
         uniform = 1.0 / len(allowed_list)
@@ -392,23 +396,27 @@ class GatePolicy:
 
 
 # 这些异常名表示"引擎此刻不可用" —— 降级到系统二即可
-_UNAVAILABLE_ERROR_NAMES = frozenset({
-    "TypeSafeAPIConnectionError",
-    "TypeSafeAPITimeoutError",
-    "TypeSafeAuthenticationError",
-    "TypeSafePermissionDeniedError",
-    "TypeSafeNotFoundError",
-    "TypeSafeRateLimitError",
-    "TypeSafeInternalServerError",
-    "TypeSafeAPIError",
-})
+_UNAVAILABLE_ERROR_NAMES = frozenset(
+    {
+        "TypeSafeAPIConnectionError",
+        "TypeSafeAPITimeoutError",
+        "TypeSafeAuthenticationError",
+        "TypeSafePermissionDeniedError",
+        "TypeSafeNotFoundError",
+        "TypeSafeRateLimitError",
+        "TypeSafeInternalServerError",
+        "TypeSafeAPIError",
+    }
+)
 
 # 这些表示"请求有问题" —— 大概率是我们的 bug，不该被静默吞掉
-_REQUEST_ERROR_NAMES = frozenset({
-    "TypeSafeBadRequestError",
-    "TypeSafeUnprocessableEntityError",
-    "TypeSafeAPIResponseValidationError",
-})
+_REQUEST_ERROR_NAMES = frozenset(
+    {
+        "TypeSafeBadRequestError",
+        "TypeSafeUnprocessableEntityError",
+        "TypeSafeAPIResponseValidationError",
+    }
+)
 
 
 def classify_error(exc: BaseException) -> type[System1Error]:
@@ -438,6 +446,7 @@ def _to_answer(raw: Any) -> Answer:
     if isinstance(raw, dict):
         get = raw.get
     else:
+
         def get(key: str, default: Any = None) -> Any:
             return getattr(raw, key, default)
 
@@ -504,7 +513,9 @@ class JevEvaluator:
         self._api_key = (
             api_key if api_key is not None else os.environ.get(API_KEY_ENV, "").strip()
         )
-        self._model = model or os.environ.get("TYPESAFE_DEFAULT_MODEL", "").strip() or None
+        self._model = (
+            model or os.environ.get("TYPESAFE_DEFAULT_MODEL", "").strip() or None
+        )
         self._base_url = base_url
         self._timeout = timeout
         self._max_retries = max_retries
@@ -533,7 +544,9 @@ class JevEvaluator:
         try:
             from typesafe_sdk import TypeSafeClient  # type: ignore[import-not-found]
         except ImportError as exc:
-            raise System1Unavailable(f"未安装 TypeSafe SDK。{SDK_INSTALL_HINT}") from exc
+            raise System1Unavailable(
+                f"未安装 TypeSafe SDK。{SDK_INSTALL_HINT}"
+            ) from exc
         if not self._api_key:
             raise System1Unavailable(
                 f"缺少 API Key：请设置环境变量 {API_KEY_ENV}（不要写进 config.py）"
@@ -547,6 +560,7 @@ class JevEvaluator:
             kwargs["timeout"] = self._timeout
         if self._max_retries is not None:
             from typesafe_sdk import RetryPolicy  # type: ignore[import-not-found]
+
             kwargs["retry"] = RetryPolicy(max_retries=self._max_retries)
         self._client = TypeSafeClient(**kwargs)
         logger.info(f"JevEvaluator ready: engine_id={self.engine_id}")
@@ -650,7 +664,9 @@ class MockEvaluator:
             raise System1RequestError("questions 不能为空")
 
         self.call_log.append((state, dict(questions)))
-        raw_answers = self._handler(state, questions) if self._handler else self._answers
+        raw_answers = (
+            self._handler(state, questions) if self._handler else self._answers
+        )
 
         # 只认被问到的问题（模拟真实引擎：不会凭空多答）
         answers = {
@@ -659,4 +675,6 @@ class MockEvaluator:
             if question_id in raw_answers
         }
         self.usage.total_calls += 1
-        return EvalResponse(model=self.model, answers=answers, input_tokens=0, output_tokens=0)
+        return EvalResponse(
+            model=self.model, answers=answers, input_tokens=0, output_tokens=0
+        )

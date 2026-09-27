@@ -62,7 +62,9 @@ def _build_evaluator(use_system1: bool):
         api_key=SYSTEM1_API_KEY, base_url=SYSTEM1_BASE_URL, model=SYSTEM1_MODEL
     )
     if not evaluator.available():
-        print("  [WARN] 系统一不可用（未装 typesafe-sdk？请 uv sync --extra system1），忽略 --system1")
+        print(
+            "  [WARN] 系统一不可用（未装 typesafe-sdk？请 uv sync --extra system1），忽略 --system1"
+        )
         return None
     return evaluator
 
@@ -99,8 +101,10 @@ def _pipeline(
         return pipeline, MockAIClient()
 
     client = DeepSeekV4Client(
-        model=SYSTEM2_MODEL, api_key=SYSTEM2_API_KEY,
-        base_url=SYSTEM2_BASE_URL, thinking=False,
+        model=SYSTEM2_MODEL,
+        api_key=SYSTEM2_API_KEY,
+        base_url=SYSTEM2_BASE_URL,
+        thinking=False,
     )
     pipeline = SignalChainPipeline(
         ai_client=client,
@@ -160,10 +164,14 @@ def clean_file(
     # --- header ---
     print(f"\n  {basename}.csv")
     print(f"  {DASH}")
-    print(f"  {len(dirty)} rows x {len(dirty.columns)} cols  -->  {len(clean)} rows x {len(clean.columns)} cols")
+    print(
+        f"  {len(dirty)} rows x {len(dirty.columns)} cols  -->  {len(clean)} rows x {len(clean.columns)} cols"
+    )
     print(f"  time: {elapsed:.2f}s  |  calls: {usage.total_calls}  |  cost: {cost:.6f}")
     if usage.prompt_tokens or usage.completion_tokens:
-        print(f"  tokens: in={usage.prompt_tokens}  out={usage.completion_tokens}  reason={usage.reasoning_tokens}")
+        print(
+            f"  tokens: in={usage.prompt_tokens}  out={usage.completion_tokens}  reason={usage.reasoning_tokens}"
+        )
 
     # 系统一的 token 与系统二分开报：两者的量级差一个数量级，混在一起看不清
     s1_usage = pipeline.evaluator.usage if pipeline.evaluator is not None else None
@@ -195,7 +203,9 @@ def clean_file(
                 preview = "  ".join(samples[:2])
                 if len(samples) > 2:
                     preview += f"  (+{len(samples) - 2} more)"
-                change_rows.append([r.col_name, r.op_name, r.changed, r.errors, preview])
+                change_rows.append(
+                    [r.col_name, r.op_name, r.changed, r.errors, preview]
+                )
         elif r.col_name in gained and r.changed > 0:
             vals = [_fmt(clean[r.col_name].iloc[i]) for i in range(min(3, len(clean)))]
             preview = "  ".join(vals) + ("..." if len(clean) > 3 else "")
@@ -206,7 +216,9 @@ def clean_file(
                 shown_prefixes.add(prefix)
                 for c in sorted(gained):
                     if c.startswith(prefix):
-                        vals = [_fmt(clean[c].iloc[i]) for i in range(min(3, len(clean)))]
+                        vals = [
+                            _fmt(clean[c].iloc[i]) for i in range(min(3, len(clean)))
+                        ]
                         preview = "  ".join(vals) + ("..." if len(clean) > 3 else "")
                         change_rows.append([c, r.op_name, r.changed, r.errors, preview])
 
@@ -226,7 +238,9 @@ def clean_file(
     total_changed = sum(r.changed for r in report.records)
     total_errors = sum(r.errors for r in report.records)
     status = "OK" if total_errors == 0 else f"ERR({total_errors})"
-    print(f"\n  [{status}] changed={total_changed}  ->  data/clean/{basename}_clean.csv")
+    print(
+        f"\n  [{status}] changed={total_changed}  ->  data/clean/{basename}_clean.csv"
+    )
 
     return {
         "name": f"{basename}.csv",
@@ -252,17 +266,21 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="SignalChain Data Cleaning Tool")
     parser.add_argument("file", nargs="?", help="clean a specific file (without .csv)")
-    parser.add_argument("--no-cache", action="store_true", help="clear cache before cleaning")
     parser.add_argument(
-        "--system1", action="store_true",
-        help="use System 1 (Jev) ONLY: scene + fields in ONE request, "
-             "low-confidence items fall back to conservative defaults "
-             "(needs uv sync --extra system1)",
+        "--no-cache", action="store_true", help="clear cache before cleaning"
     )
     parser.add_argument(
-        "--escalate", action="store_true",
+        "--system1",
+        action="store_true",
+        help="use System 1 (Jev) ONLY: scene + fields in ONE request, "
+        "low-confidence items fall back to conservative defaults "
+        "(needs uv sync --extra system1)",
+    )
+    parser.add_argument(
+        "--escalate",
+        action="store_true",
         help="let System 1 escalate low-confidence items to System 2 "
-             "(opt-in chaining; requires --system1)",
+        "(opt-in chaining; requires --system1)",
     )
     args = parser.parse_args()
 
@@ -289,7 +307,9 @@ if __name__ == "__main__":
 
     print(BAR)
     print("  SignalChain Cleaner")
-    print(f"  system 2 (LLM): {'ON' if (not args.system1 or args.escalate) else 'OFF'}  |  model: {SYSTEM2_MODEL}")
+    print(
+        f"  system 2 (LLM): {'ON' if (not args.system1 or args.escalate) else 'OFF'}  |  model: {SYSTEM2_MODEL}"
+    )
     if not args.system1:
         mode = "system 2 only"
     elif args.escalate:
@@ -326,7 +346,9 @@ if __name__ == "__main__":
         # per-file table
         hdr = f"  {'file':<16s} {'size':<12s} {'time':>7s} {'calls':>5s} {'in':>5s} {'out':>5s} {'reason':>6s} {'cost':>10s} {'changed':>7s}"
         print(hdr)
-        print(f"  {'-' * 16} {'-' * 12} {'-' * 7} {'-' * 5} {'-' * 5} {'-' * 5} {'-' * 6} {'-' * 10} {'-' * 7}")
+        print(
+            f"  {'-' * 16} {'-' * 12} {'-' * 7} {'-' * 5} {'-' * 5} {'-' * 5} {'-' * 6} {'-' * 10} {'-' * 7}"
+        )
         for r in results:
             size_str = f"{r['rows']}x{r['cols_old']}->{r['cols_new']}"
             print(
@@ -340,7 +362,9 @@ if __name__ == "__main__":
                 f"{r['cost']:>10.6f} "
                 f"{r['changed']:>7d}"
             )
-        print(f"  {'-' * 16} {'-' * 12} {'-' * 7} {'-' * 5} {'-' * 5} {'-' * 5} {'-' * 6} {'-' * 10} {'-' * 7}")
+        print(
+            f"  {'-' * 16} {'-' * 12} {'-' * 7} {'-' * 5} {'-' * 5} {'-' * 5} {'-' * 6} {'-' * 10} {'-' * 7}"
+        )
         total_calls = sum(r["calls"] for r in results)
         print(
             f"  {'TOTAL':<16s} "

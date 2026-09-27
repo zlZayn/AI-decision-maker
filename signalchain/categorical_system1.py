@@ -140,7 +140,7 @@ def build_ordinal_questions(
 ) -> dict[str, Any]:
     """第二层：每个变量 1 个 noul（有没有顺序）+ 每个取值 1 个 score（在哪一档）
 
-    取值超过 max_levels 的变量不发 score 问题（问题数会爆），只留 noul —— 
+    取值超过 max_levels 的变量不发 score 问题（问题数会爆），只留 noul ——
     若 noul 判有序但没有分数可用，调用方会保守地判为无序。
     """
     questions: dict[str, Any] = {}
@@ -207,7 +207,9 @@ class System1Classification:
         lines = []
         for name, order in self.result.ordinal.items():
             scored = self.scores.get(name, {})
-            chain = " < ".join(f"{value}({scored.get(value, 0):.2f})" for value in order)
+            chain = " < ".join(
+                f"{value}({scored.get(value, 0):.2f})" for value in order
+            )
             lines.append(f"  [有序] {name}: {chain}")
         for name in self.result.nominal:
             lines.append(f"  [无序] {name}")
@@ -258,7 +260,9 @@ class System1CategoricalClassifier:
             return None
 
         categorical_fields, borderline = self._select_categorical_fields(first, profile)
-        logger.info(f"系统一第一层：分类变量 = {categorical_fields}（borderline={borderline}）")
+        logger.info(
+            f"系统一第一层：分类变量 = {categorical_fields}（borderline={borderline}）"
+        )
 
         if not categorical_fields:
             return System1Classification(
@@ -314,7 +318,9 @@ class System1CategoricalClassifier:
         borderline: list[str] = []
         for field_profile in profile.fields:
             answer = response.answers.get(cat_question_id(field_profile.name))
-            probability = answer.noul if answer is not None and answer.noul is not None else 0.0
+            probability = (
+                answer.noul if answer is not None and answer.noul is not None else 0.0
+            )
             cert = certainty(answer) if answer is not None else 0.0
             is_categorical = probability >= 0.5
             verdict = self.policy.verdict(cert)
@@ -346,7 +352,9 @@ class System1CategoricalClassifier:
         scores_by_name: dict[str, dict[str, float]] = {}
         for name in categorical_fields:
             answer = response.answers.get(ordinal_question_id(name))
-            probability = answer.noul if answer is not None and answer.noul is not None else 0.0
+            probability = (
+                answer.noul if answer is not None and answer.noul is not None else 0.0
+            )
             cert = certainty(answer) if answer is not None else 0.0
             verdict = self.policy.verdict(cert)
 
@@ -355,7 +363,9 @@ class System1CategoricalClassifier:
             )
             spread = (max(scores.values()) - min(scores.values())) if scores else 0.0
             mean_level_certainty = (
-                sum(level_certainties) / len(level_certainties) if level_certainties else 0.0
+                sum(level_certainties) / len(level_certainties)
+                if level_certainties
+                else 0.0
             )
             is_ordinal = self._is_ordinal(
                 probability, cert, scores, spread, mean_level_certainty

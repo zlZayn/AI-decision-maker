@@ -121,7 +121,9 @@ class SignalChainPipeline:
 
             # ---- Stage 2: 路由 + Prompt 组装 ----
             scene_config = self.routing.get(scene_code, self.routing["S0"])
-            field_prompt = build_field_semantic_prompt(profile, scene_config, scene_code)
+            field_prompt = build_field_semantic_prompt(
+                profile, scene_config, scene_code
+            )
             logger.info(f"Stage 2: prompt assembled for '{scene_config.scene_name}'")
 
             # ---- Stage 3: 字段语义识别 ----
@@ -130,7 +132,9 @@ class SignalChainPipeline:
             signal_sequence = validate_field_signal_sequence(
                 raw_signals, profile.field_count, scene_config.valid_codes
             )
-            logger.info(f"Stage 3: signal_sequence={signal_sequence} (raw={raw_signals!r})")
+            logger.info(
+                f"Stage 3: signal_sequence={signal_sequence} (raw={raw_signals!r})"
+            )
 
         scene_config = self.routing.get(scene_code, self.routing["S0"])
 
@@ -158,7 +162,9 @@ class SignalChainPipeline:
         try:
             return self.decider.decide(profile)
         except System1Error as exc:
-            logger.error(f"系统一决策失败，回退系统二原路径：{type(exc).__name__}: {exc}")
+            logger.error(
+                f"系统一决策失败，回退系统二原路径：{type(exc).__name__}: {exc}"
+            )
             return None
 
     @staticmethod
@@ -179,7 +185,9 @@ class SignalChainPipeline:
         self, df: pd.DataFrame, profile, cached: CacheEntry
     ) -> tuple[pd.DataFrame, QualityReport]:
         scene_config = self.routing.get(cached.scene_code, self.routing["S0"])
-        return self._execute(df, profile.field_names, cached.signal_sequence, scene_config)
+        return self._execute(
+            df, profile.field_names, cached.signal_sequence, scene_config
+        )
 
     def _execute(
         self,
@@ -208,6 +216,7 @@ class SignalChainPipeline:
     ) -> tuple[pd.DataFrame, QualityReport]:
         """跳过 AI，直接用指定信号执行"""
         from signalchain.stage0_profile import extract_profile
+
         profile = extract_profile(df)
         scene_config = ROUTING_TABLE.get(scene_code, ROUTING_TABLE["S0"])
         # 字段名标准化

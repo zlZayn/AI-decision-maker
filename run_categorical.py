@@ -102,7 +102,9 @@ def _build_classifier(use_system1: bool, escalate: bool, client):
         api_key=SYSTEM1_API_KEY, base_url=SYSTEM1_BASE_URL, model=SYSTEM1_MODEL
     )
     if not evaluator.available():
-        print("  [WARN] 系统一不可用（未装 typesafe-sdk？请 uv sync --extra system1），回退系统二")
+        print(
+            "  [WARN] 系统一不可用（未装 typesafe-sdk？请 uv sync --extra system1），回退系统二"
+        )
         return CategoricalClassifier(client), "system 2 only"
 
     fallback = CategoricalClassifier(client) if escalate else None
@@ -114,22 +116,24 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="SignalChain Categorical Analysis")
-    parser.add_argument("--no-cache", action="store_true", help="force re-classify all files")
     parser.add_argument(
-        "--system1", action="store_true",
+        "--no-cache", action="store_true", help="force re-classify all files"
+    )
+    parser.add_argument(
+        "--system1",
+        action="store_true",
         help="use System 1 (Jev) ONLY for classification (needs uv sync --extra system1)",
     )
     parser.add_argument(
-        "--escalate", action="store_true",
+        "--escalate",
+        action="store_true",
         help="let System 1 escalate uncertain fields to System 2 "
-             "(opt-in chaining; requires --system1)",
+        "(opt-in chaining; requires --system1)",
     )
     args = parser.parse_args()
     system1_only = args.system1 and not args.escalate
 
-    csv_files = sorted(
-        f for f in os.listdir(INPUT_DIR) if f.endswith(".csv")
-    )
+    csv_files = sorted(f for f in os.listdir(INPUT_DIR) if f.endswith(".csv"))
     if not csv_files:
         print(f"  [ERR] No CSV files in {INPUT_DIR}")
         sys.exit(1)
@@ -142,15 +146,19 @@ def main():
         MockAIClient()
         if system1_only
         else DeepSeekV4Client(
-            model=SYSTEM2_MODEL, api_key=SYSTEM2_API_KEY,
-            base_url=SYSTEM2_BASE_URL, thinking=False,
+            model=SYSTEM2_MODEL,
+            api_key=SYSTEM2_API_KEY,
+            base_url=SYSTEM2_BASE_URL,
+            thinking=False,
         )
     )
     classifier, classifier_tag = _build_classifier(args.system1, args.escalate, client)
 
     print(BAR)
     print("  Categorical Variable Analysis")
-    print(f"  system 2 (LLM): {'OFF' if system1_only else 'ON'}  |  model: {SYSTEM2_MODEL}")
+    print(
+        f"  system 2 (LLM): {'OFF' if system1_only else 'ON'}  |  model: {SYSTEM2_MODEL}"
+    )
     print(f"  mode: {classifier_tag}")
     print(BAR)
     print(f"\n  input : {os.path.relpath(INPUT_DIR, ROOT)} ({len(csv_files)} files)")
@@ -174,6 +182,7 @@ def main():
         if cached:
             # 缓存命中，跳过 AI
             from signalchain.categorical import ClassificationResult
+
             result = ClassificationResult(
                 ordinal=cached.get("ordinal", {}),
                 nominal=cached.get("nominal", []),
@@ -201,14 +210,16 @@ def main():
             with open(out_path, "w", encoding="utf-8") as f:
                 json.dump(output, f, ensure_ascii=False, indent=2)
 
-        results.append({
-            "name": filename,
-            "rows": len(df),
-            "ordinal": result.ordinal,
-            "nominal": result.nominal,
-            "elapsed": elapsed,
-            "cached": cached is not None,
-        })
+        results.append(
+            {
+                "name": filename,
+                "rows": len(df),
+                "ordinal": result.ordinal,
+                "nominal": result.nominal,
+                "elapsed": elapsed,
+                "cached": cached is not None,
+            }
+        )
 
         # 打印
         print(f"\n  {DASH}")
@@ -262,7 +273,9 @@ def main():
     print(f"\n  {DASH}")
     print("  AI Classification & Method Selection")
     print(f"  {DASH}")
-    print(f"  {'file':<14s} {'rows':>4s} {'types':<10s} {'method':<10s} {'status':<7s}  {'result'}")
+    print(
+        f"  {'file':<14s} {'rows':>4s} {'types':<10s} {'method':<10s} {'status':<7s}  {'result'}"
+    )
     print(f"  {'-' * 14} {'-' * 4} {'-' * 10} {'-' * 10} {'-' * 7}  {'-' * 24}")
     for r in results:
         cats = []
@@ -280,13 +293,17 @@ def main():
 
         status = "cache" if r["cached"] else f"{r['elapsed']:.2f}s"
         method = r.get("method", "?")
-        print(f"  {_pad(r['name'], 14)} {r['rows']:>4d} {_pad(types_str, 10)} {_pad(method, 10)} {status:>7s}  {cat_str}")
+        print(
+            f"  {_pad(r['name'], 14)} {r['rows']:>4d} {_pad(types_str, 10)} {_pad(method, 10)} {status:>7s}  {cat_str}"
+        )
     print(f"  {'-' * 14} {'-' * 4} {'-' * 10} {'-' * 10} {'-' * 7}  {'-' * 24}")
 
     print(f"\n{BAR}")
     print("  Summary")
     print(BAR)
-    print(f"  files: {len(results)}  |  called: {called_count}  |  cached: {cached_count}  |  time: {total_time:.2f}s  |  cost: {cost:.6f}")
+    print(
+        f"  files: {len(results)}  |  called: {called_count}  |  cached: {cached_count}  |  time: {total_time:.2f}s  |  cost: {cost:.6f}"
+    )
     if usage.prompt_tokens:
         print(f"  tokens: in={usage.prompt_tokens}  out={usage.completion_tokens}")
 

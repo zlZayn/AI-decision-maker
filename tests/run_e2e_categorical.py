@@ -27,8 +27,10 @@ from signalchain.stage0_profile import extract_profile
 
 def create_classifier() -> CategoricalClassifier:
     client = DeepSeekV4Client(
-        model=SYSTEM2_MODEL, api_key=SYSTEM2_API_KEY,
-        base_url=SYSTEM2_BASE_URL, thinking=False,
+        model=SYSTEM2_MODEL,
+        api_key=SYSTEM2_API_KEY,
+        base_url=SYSTEM2_BASE_URL,
+        thinking=False,
     )
     return CategoricalClassifier(client)
 
@@ -40,16 +42,18 @@ def case_medical(index: int, total: int):
     """医疗数据 — 含有序(学历/满意度)和无序(性别/城市/血型)"""
     print(f"\n--- {index}/{total} 医疗数据 ---")
 
-    df = pd.DataFrame({
-        "patient_id": ["P001", "P002", "P003", "P004", "P005", "P006"],
-        "gender": ["M", "F", "M", "F", "M", "F"],
-        "education": ["小学", "本科", "高中", "硕士", "初中", "博士"],
-        "satisfaction": ["满意", "不满意", "一般", "非常满意", "满意", "不满意"],
-        "city": ["北京", "上海", "广州", "北京", "深圳", "上海"],
-        "blood_type": ["A", "B", "O", "AB", "A", "B"],
-        "age": [30, 25, 42, 35, 28, 50],
-        "amount": [1500, 2300, 800, 3100, 1200, 5000],
-    })
+    df = pd.DataFrame(
+        {
+            "patient_id": ["P001", "P002", "P003", "P004", "P005", "P006"],
+            "gender": ["M", "F", "M", "F", "M", "F"],
+            "education": ["小学", "本科", "高中", "硕士", "初中", "博士"],
+            "satisfaction": ["满意", "不满意", "一般", "非常满意", "满意", "不满意"],
+            "city": ["北京", "上海", "广州", "北京", "深圳", "上海"],
+            "blood_type": ["A", "B", "O", "AB", "A", "B"],
+            "age": [30, 25, 42, 35, 28, 50],
+            "amount": [1500, 2300, 800, 3100, 1200, 5000],
+        }
+    )
 
     print(f"  字段: {list(df.columns)}")
     profile = extract_profile(df)
@@ -72,11 +76,13 @@ def case_pure_nominal(index: int, total: int):
     """纯无序数据 — 性别/城市/血型，无有序变量"""
     print(f"\n--- {index}/{total} 纯无序数据 ---")
 
-    df = pd.DataFrame({
-        "gender": ["M", "F", "M", "F"],
-        "city": ["北京", "上海", "广州", "深圳"],
-        "blood_type": ["A", "B", "O", "AB"],
-    })
+    df = pd.DataFrame(
+        {
+            "gender": ["M", "F", "M", "F"],
+            "city": ["北京", "上海", "广州", "深圳"],
+            "blood_type": ["A", "B", "O", "AB"],
+        }
+    )
 
     print(f"  字段: {list(df.columns)}")
     profile = extract_profile(df)
@@ -99,10 +105,12 @@ def case_pure_ordinal(index: int, total: int):
     """纯有序数据 — 学历/满意度，无无序变量"""
     print(f"\n--- {index}/{total} 纯有序数据 ---")
 
-    df = pd.DataFrame({
-        "education": ["小学", "初中", "高中", "本科", "硕士", "博士"],
-        "satisfaction": ["不满意", "一般", "满意", "非常满意", "满意", "不满意"],
-    })
+    df = pd.DataFrame(
+        {
+            "education": ["小学", "初中", "高中", "本科", "硕士", "博士"],
+            "satisfaction": ["不满意", "一般", "满意", "非常满意", "满意", "不满意"],
+        }
+    )
 
     print(f"  字段: {list(df.columns)}")
     profile = extract_profile(df)
@@ -125,11 +133,13 @@ def case_no_categorical(index: int, total: int):
     """无分类变量 — 连续数值和ID"""
     print(f"\n--- {index}/{total} 无分类变量 ---")
 
-    df = pd.DataFrame({
-        "id": ["A001", "A002", "A003"],
-        "age": [30, 25, 42],
-        "amount": [1500.5, 2300.0, 800.0],
-    })
+    df = pd.DataFrame(
+        {
+            "id": ["A001", "A002", "A003"],
+            "age": [30, 25, 42],
+            "amount": [1500.5, 2300.0, 800.0],
+        }
+    )
 
     print(f"  字段: {list(df.columns)}")
     profile = extract_profile(df)
@@ -180,6 +190,7 @@ if __name__ == "__main__":
         except Exception as e:  # noqa: BLE001 — 自建 e2e 运行器要逐个跑完并汇总 FAIL：用例失败面跨子进程 / 网络 / 断言，收窄会漏掉真正失败的用例
             print(f"  FAIL: {e}")
             import traceback
+
             traceback.print_exc()
     elapsed = time.time() - t0
     footer(elapsed, passed, len(TESTS))

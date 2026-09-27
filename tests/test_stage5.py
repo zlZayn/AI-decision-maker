@@ -35,10 +35,12 @@ class TestExecutePipeline:
         assert list(result["age"]) == [30, 30, 30]
 
     def test_multiple_operations(self):
-        df = pd.DataFrame({
-            "id": ["P001", "P002"],
-            "gender": ["M", "F"],
-        })
+        df = pd.DataFrame(
+            {
+                "id": ["P001", "P002"],
+                "gender": ["M", "F"],
+            }
+        )
         ops = [
             ("id", PassThrough()),
             ("gender", GenderNormalizer()),
