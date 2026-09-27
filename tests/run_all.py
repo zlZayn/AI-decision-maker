@@ -10,8 +10,8 @@ SignalChain 全量测试
 """
 
 import os
-import sys
 import subprocess
+import sys
 import time
 
 if sys.platform == "win32":
@@ -51,7 +51,7 @@ if __name__ == "__main__":
     failed = None
     for label, script in SCRIPTS:
         print(f"\n--- {label} ---")
-        result = subprocess.run([sys.executable, script], cwd=ROOT)
+        result = subprocess.run([sys.executable, script], cwd=ROOT, check=False)
         if result.returncode != 0:
             failed = label
             break

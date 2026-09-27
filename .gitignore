@@ -9,3 +9,6 @@ data/clean/
 config.py
 .venv/
 .DS_Store
+
+# Lint / 格式化缓存
+.ruff_cache/

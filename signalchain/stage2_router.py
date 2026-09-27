@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 
-from signalchain.models import DataProfile, SceneConfig, CODE_LABELS
+from signalchain.models import CODE_LABELS, DataProfile, SceneConfig
 
 logger = logging.getLogger(__name__)
 

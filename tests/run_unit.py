@@ -23,7 +23,7 @@ BAR = "=" * 56
 
 def header():
     print(f"\n{BAR}")
-    print(f"  SignalChain · 本地单元测试 · MockAI · 零Token")
+    print("  SignalChain · 本地单元测试 · MockAI · 零Token")
     print(f"{BAR}")
 
 

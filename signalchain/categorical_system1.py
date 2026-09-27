@@ -25,8 +25,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Mapping
+from typing import Any
 
 import pandas as pd
 
@@ -35,7 +36,7 @@ from signalchain.categorical import (
     ClassificationResult,
     extract_unique_values,
 )
-from signalchain.models import DataProfile, DecisionRecord, FieldProfile
+from signalchain.models import DataProfile, DecisionRecord
 from signalchain.system1 import (
     EvalResponse,
     Evaluator,
@@ -311,18 +312,18 @@ class System1CategoricalClassifier:
         """
         categorical_fields: list[str] = []
         borderline: list[str] = []
-        for field in profile.fields:
-            answer = response.answers.get(cat_question_id(field.name))
+        for field_profile in profile.fields:
+            answer = response.answers.get(cat_question_id(field_profile.name))
             probability = answer.noul if answer is not None and answer.noul is not None else 0.0
             cert = certainty(answer) if answer is not None else 0.0
             is_categorical = probability >= 0.5
             verdict = self.policy.verdict(cert)
             if verdict == "escalate":
-                borderline.append(field.name)
+                borderline.append(field_profile.name)
             self.decisions.append(
                 DecisionRecord(
-                    question_id=cat_question_id(field.name),
-                    subject=field.name,
+                    question_id=cat_question_id(field_profile.name),
+                    subject=field_profile.name,
                     chosen="分类变量" if is_categorical else "非分类",
                     certainty=cert,
                     engine="system1",
@@ -331,7 +332,7 @@ class System1CategoricalClassifier:
                 )
             )
             if is_categorical:
-                categorical_fields.append(field.name)
+                categorical_fields.append(field_profile.name)
         return categorical_fields, borderline
 
     def _classify_levels(

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Protocol, Any
+from typing import Any, Protocol
 
 logger = logging.getLogger(__name__)
 

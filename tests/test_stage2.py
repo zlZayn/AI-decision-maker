@@ -1,12 +1,12 @@
 """Stage 2 测试 — 路由与 Prompt 组装"""
 
+from signalchain.models import DataProfile, FieldProfile
 from signalchain.stage2_router import (
     ROUTING_TABLE,
-    compress_samples,
-    build_field_semantic_prompt,
     _format_code_options,
+    build_field_semantic_prompt,
+    compress_samples,
 )
-from signalchain.models import DataProfile, FieldProfile
 
 
 class TestRoutingTable:

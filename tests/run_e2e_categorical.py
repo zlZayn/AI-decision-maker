@@ -18,10 +18,11 @@ if sys.platform == "win32":
             stream.reconfigure(encoding="utf-8", errors="replace")
 
 import pandas as pd
-from signalchain.stage0_profile import extract_profile
-from signalchain.categorical import CategoricalClassifier
-from signalchain.ai_client import DeepSeekV4Client
+
 from config import SYSTEM2_API_KEY, SYSTEM2_BASE_URL, SYSTEM2_MODEL
+from signalchain.ai_client import DeepSeekV4Client
+from signalchain.categorical import CategoricalClassifier
+from signalchain.stage0_profile import extract_profile
 
 
 def create_classifier() -> CategoricalClassifier:
@@ -176,7 +177,7 @@ if __name__ == "__main__":
         try:
             test_fn(i, len(TESTS))
             passed += 1
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — 自建 e2e 运行器要逐个跑完并汇总 FAIL：用例失败面跨子进程 / 网络 / 断言，收窄会漏掉真正失败的用例
             print(f"  FAIL: {e}")
             import traceback
             traceback.print_exc()

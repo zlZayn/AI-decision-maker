@@ -18,9 +18,12 @@
 - `uv run python run_categorical.py [--no-cache] [--system1] [--escalate]` — 分类变量分析（需 R 环境）
 - `uv run python run_smoke_jev.py [--offline|--all]` — 系统一（Jev）冒烟：中文样本 / 有序性 / 延迟 / token
 - `uv sync --extra system1` — 装系统一依赖（typesafe-sdk）；不装则系统一不可用
+- `uv run ruff check .` — Lint（ruff 默认规则集，列宽默认 88）
+- `uv run ruff format .` — 格式化（`--check` 只看不改）
 
-## 验证快照（最近一次：2026-09-21）
+## 验证快照（Ruff 与 pytest 复核 2026-09-27；其余沿用 2026-09-21 实跑）
 - pytest: **250 passed / 0 failed**（基线 137 → 系统一接入 +97 → 解耦 +9 → 缓存分区 +7）
+- Ruff（2026-09-27 引入）: `check` 0 发现；`format --check` 全绿（全量格式化已落地）
 - Jev 在线实测（jev-1.13.0）: 场景 3/3、字段码 16/16、有序性 5/5（见 [signalchain/SYSTEM1.md](signalchain/SYSTEM1.md)）
 - 纯系统一 vs 纯系统二 对照（2026-09-21）: 清洗链路 3 文件 SHA256 逐字节一致、操作链 18 行一致；分类链路 5/6 一致（data_B_type.json 系统二多判了 id，系统一更合理；report.json 不受影响）；两引擎各自可复现
 - token 口径（2026-09-21）: 计费口径（API 自报）清洗 6.6× / 分类 12.7×；"同口径 4.0× / 13.3×"因本地 tokenizer 中文计 0 已作废

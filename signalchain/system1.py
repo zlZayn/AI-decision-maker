@@ -31,8 +31,9 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Mapping, Protocol, Sequence, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from signalchain.ai_client import TokenUsage
 
@@ -300,7 +301,7 @@ def score_answer_dict(
         legend_map = {str(i): str(v) for i, v in enumerate(legend)}
     if probabilities is None:
         # 默认造一个以 round(value) 档为中心的尖峰分布
-        peak = int(round(value))
+        peak = round(value)
         probabilities = {str(peak): 0.8}
         if legend_map:
             rest = 0.2 / max(1, len(legend_map) - 1)
@@ -557,7 +558,7 @@ class JevEvaluator:
         client = self._ensure_client()
         try:
             response = client.system_one(state=state, questions=dict(questions))
-        except Exception as exc:  # noqa: BLE001 — 需要按类名归类后重抛
+        except Exception as exc:
             error_type = classify_error(exc)
             message = f"Jev 调用失败（{type(exc).__name__}）: {exc}"
             if error_type is System1RequestError:

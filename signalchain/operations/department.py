@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from signalchain.operations.base import Operation
 from signalchain.knowledge import SEMANTIC_KNOWLEDGE
+from signalchain.operations.base import Operation
 
 
 class DepartmentNormalizer(Operation):

@@ -115,7 +115,7 @@ def execute_pipeline(
                 changed = int((original != output).sum())
                 report.record(col_name, op.name, changed=changed, errors=0)
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — 单字段算子失败只记 errors 不中断整列：算子失败面跨 pandas / 解析 / 用户自定义操作
             logger.warning(f"Field '{col_name}' op '{op.name}' failed: {e}, keeping original")
             report.record(col_name, op.name, changed=0, errors=1)
 

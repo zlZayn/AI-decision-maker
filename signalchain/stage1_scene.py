@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 
-from signalchain.models import DataProfile, VALID_SCENE_CODES
+from signalchain.models import VALID_SCENE_CODES, DataProfile
 
 logger = logging.getLogger(__name__)
 

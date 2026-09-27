@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 import pandas as pd
 
 from signalchain.operations.base import Operation
@@ -15,7 +17,7 @@ class DateTimeParser(Operation):
     无法解析的保留原值。
     """
 
-    COMMON_FORMATS = [
+    COMMON_FORMATS: ClassVar[list[str]] = [
         "%Y-%m-%d %H:%M:%S",
         "%Y-%m-%d %H:%M",
         "%Y-%m-%d",
@@ -40,7 +42,7 @@ class DateTimeParser(Operation):
         return "parse_datetime"
 
     # 纯日期格式（无时间部分）
-    DATE_ONLY_FORMATS = {
+    DATE_ONLY_FORMATS: ClassVar[set[str]] = {
         "%Y-%m-%d", "%Y/%m/%d", "%Y年%m月%d日",
         "%d/%m/%Y", "%m/%d/%Y", "%Y%m%d", "%Y.%m.%d",
     }
@@ -51,12 +53,14 @@ class DateTimeParser(Operation):
                 return None
             s = str(val).strip()
 
-            from datetime import datetime
+            from datetime import datetime, timezone
 
             # 先尝试显式格式匹配（能区分纯日期和含时间）
             for fmt in self.COMMON_FORMATS:
                 try:
-                    dt = datetime.strptime(s, fmt)
+                    # 统一标记为 UTC：格式表里少数格式自带 %z，用 replace 而非 astimezone，
+                    # 墙上时间（唯一被 strftime 取用的部分）逐字不变
+                    dt = datetime.strptime(s, fmt).replace(tzinfo=timezone.utc)
                     if fmt in self.DATE_ONLY_FORMATS:
                         return dt.strftime("%Y-%m-%d")
                     return dt.strftime("%Y-%m-%d %H:%M:%S")

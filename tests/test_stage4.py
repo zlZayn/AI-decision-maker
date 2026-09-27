@@ -1,8 +1,8 @@
 """Stage 4 测试 — 执行计划组装"""
 
-from signalchain.stage4_assemble import assemble_operations
 from signalchain.models import SceneConfig
 from signalchain.operations.pass_through import PassThrough
+from signalchain.stage4_assemble import assemble_operations
 
 
 class TestAssembleOperations:

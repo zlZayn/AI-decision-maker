@@ -1,7 +1,7 @@
 """Stage 1 测试 — 场景识别"""
 
-from signalchain.stage1_scene import build_scene_prompt, validate_scene_code
 from signalchain.models import DataProfile, FieldProfile
+from signalchain.stage1_scene import build_scene_prompt, validate_scene_code
 
 
 class TestBuildScenePrompt:

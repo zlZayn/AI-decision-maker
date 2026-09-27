@@ -31,30 +31,27 @@ from typing import Any
 
 import pandas as pd
 
-from signalchain.fastpath import (
-    SCENE_QUESTION_ID,
-    build_questions,
-    build_state,
-    field_question_id,
-    scene_criteria,
-)
-from signalchain.stage0_profile import extract_profile
 from signalchain.categorical_system1 import (
     build_ordinal_questions,
     level_question_id,
     ordinal_question_id,
 )
+from signalchain.fastpath import (
+    SCENE_QUESTION_ID,
+    build_questions,
+    build_state,
+    field_question_id,
+)
+from signalchain.stage0_profile import extract_profile
 from signalchain.system1 import (
     Evaluator,
     JevEvaluator,
     MockEvaluator,
     certainty,
-    choice,
     choice_answer_dict,
     noul,
     noul_answer_dict,
     noul_certainty,
-    score,
     score_answer_dict,
 )
 
@@ -100,9 +97,13 @@ def _fmt_probs(probabilities: dict[str, float], top: int = 3) -> str:
 def _load_config() -> tuple[str, str, str]:
     """从 config.py 读系统一配置（读不到就空）"""
     try:
-        from config import SYSTEM1_API_KEY, SYSTEM1_BASE_URL, SYSTEM1_MODEL  # type: ignore
+        from config import (  # type: ignore
+            SYSTEM1_API_KEY,
+            SYSTEM1_BASE_URL,
+            SYSTEM1_MODEL,
+        )
         return SYSTEM1_API_KEY, SYSTEM1_BASE_URL, SYSTEM1_MODEL
-    except Exception:
+    except (ImportError, OSError):
         return "", "https://api.typesafe.ai", "jev-latest"
 
 
@@ -116,7 +117,7 @@ _OFFLINE_CATEGORICAL = {
 
 def _peaked(value: float, peak: float = 0.95) -> dict:
     """尖峰分布：peak=0.95 → confidence=(5×0.95−1)/4=0.9375，过 0.80 的档位门"""
-    peak_key = str(int(round(value)))
+    peak_key = str(round(value))
     rest = (1.0 - peak) / (len(LEVELS) - 1)
     probabilities = {
         str(index): (peak if str(index) == peak_key else rest)
@@ -427,7 +428,7 @@ def main() -> None:
             check_2_dataset(evaluator, filename)
             check_4_categorical(evaluator, filename)
         check_3_ordinality(evaluator)
-    except Exception as exc:  # noqa: BLE001 — 冒烟脚本需要打印原始错误便于定位
+    except Exception as exc:
         print(f"\n  [ERR] {type(exc).__name__}: {exc}")
         raise
 

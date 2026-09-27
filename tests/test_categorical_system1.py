@@ -23,7 +23,6 @@ from signalchain.system1 import (
     GatePolicy,
     MockEvaluator,
     System1Unavailable,
-    choice_answer_dict,
     noul_answer_dict,
     score_answer_dict,
 )
@@ -35,7 +34,7 @@ def peaked_score(value: float, peak: float = 0.95) -> dict:
     默认 peak=0.95 → choice_confidence = (5 × 0.95 − 1) / 4 = 0.9375，过 0.80 的档位门。
     实测的真有序变量在 0.988~0.995，无序变量在 0.43~0.675 —— 0.80 落在中间的空档里。
     """
-    peak_key = str(int(round(value)))
+    peak_key = str(round(value))
     rest = (1.0 - peak) / (len(ORDINALITY_LEVELS) - 1)
     probabilities = {
         str(index): (peak if str(index) == peak_key else rest)

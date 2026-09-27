@@ -79,7 +79,7 @@ class CacheEntry:
         return payload
 
     @classmethod
-    def from_payload(cls, payload: Mapping[str, Any] | None) -> "CacheEntry | None":
+    def from_payload(cls, payload: Mapping[str, Any] | None) -> CacheEntry | None:
         """从缓存条目还原；必需字段缺失或类型不对时返回 None（按未命中处理）
 
         可选字段（engine / certainty）缺失是合法的：老缓存文件没有它们。

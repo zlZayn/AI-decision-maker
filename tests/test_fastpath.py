@@ -13,7 +13,6 @@ from signalchain.ai_client import MockAIClient
 from signalchain.cache import SignalCache
 from signalchain.fastpath import (
     CODE_ORDER,
-    FIELD_QUESTION_PREFIX,
     SCENE_QUESTION_ID,
     System1Decider,
     build_questions,
@@ -28,16 +27,14 @@ from signalchain.models import (
     DataProfile,
     FieldProfile,
 )
-from signalchain.stage2_router import ROUTING_TABLE
 from signalchain.pipeline import SignalChainPipeline
 from signalchain.stage0_profile import extract_profile
+from signalchain.stage2_router import ROUTING_TABLE
 from signalchain.system1 import (
     MockEvaluator,
     System1Unavailable,
     choice_answer_dict,
-    noul_answer_dict,
 )
-
 
 # ============================================================
 # 夹具

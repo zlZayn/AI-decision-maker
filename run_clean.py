@@ -14,10 +14,12 @@ import logging
 import os
 import sys
 import time
+
 import pandas as pd
-from signalchain.pipeline import SignalChainPipeline
-from signalchain.ai_client import DeepSeekV4Client, MockAIClient
+
 from config import SYSTEM2_API_KEY, SYSTEM2_BASE_URL, SYSTEM2_MODEL
+from signalchain.ai_client import DeepSeekV4Client, MockAIClient
+from signalchain.pipeline import SignalChainPipeline
 
 logging.getLogger("signalchain").setLevel(logging.ERROR)
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -136,7 +138,7 @@ def clean_file(
     try:
         clean, report = pipeline.run(dirty)
         elapsed = time.time() - t0
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — 单文件失败不中断整批：pipeline 覆盖 AI 调用 / 解析 / 落盘，异常面不可枚举
         print(f"\n  {basename}.csv  [ERR] {e}")
         return None
 

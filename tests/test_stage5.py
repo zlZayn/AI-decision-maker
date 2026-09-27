@@ -2,10 +2,10 @@
 
 import pandas as pd
 
-from signalchain.stage5_execute import execute_pipeline, QualityReport
-from signalchain.operations.pass_through import PassThrough
-from signalchain.operations.gender import GenderNormalizer
 from signalchain.operations.age import AgeExtractor
+from signalchain.operations.gender import GenderNormalizer
+from signalchain.operations.pass_through import PassThrough
+from signalchain.stage5_execute import QualityReport, execute_pipeline
 
 
 class TestExecutePipeline:
@@ -30,7 +30,7 @@ class TestExecutePipeline:
     def test_age_extraction(self):
         df = pd.DataFrame({"age": ["30", "30岁", "约30"]})
         ops = [("age", AgeExtractor())]
-        result, report = execute_pipeline(df, ops)
+        result, _report = execute_pipeline(df, ops)
 
         assert list(result["age"]) == [30, 30, 30]
 
@@ -72,7 +72,7 @@ class TestExecutePipeline:
         """执行管线不应修改原始 DataFrame"""
         df = pd.DataFrame({"gender": ["M", "F"]})
         ops = [("gender", GenderNormalizer())]
-        result, report = execute_pipeline(df, ops)
+        result, _report = execute_pipeline(df, ops)
 
         # 原始数据不变
         assert list(df["gender"]) == ["M", "F"]

@@ -26,8 +26,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Mapping
+from typing import Any
 
 from signalchain.models import (
     CODE_LABELS,
@@ -49,9 +50,8 @@ from signalchain.system1 import (
     Evaluator,
     GatePolicy,
     System1Unavailable,
-    argmax,
-    choice,
     certainty,
+    choice,
     condition_choice,
 )
 
@@ -360,14 +360,16 @@ class System1Decider:
         profile: DataProfile,
         scene_config: Any,
         one_pass: bool,
-    ) -> list["_FieldOutcome"]:
+    ) -> list[_FieldOutcome]:
         """逐字段：条件化 → 定码 → 门控。只判定，不改结果。"""
         outcomes: list[_FieldOutcome] = []
-        for field in profile.fields:
-            answer = self._find_field_answer(response, field)
+        for field_profile in profile.fields:
+            answer = self._find_field_answer(response, field_profile)
             if answer is None:
-                logger.info(f"字段 {field.name!r} 无答案，转入升级候选")
-                outcomes.append(_FieldOutcome(field, code="X", certainty=0.0, verdict="escalate"))
+                logger.info(f"字段 {field_profile.name!r} 无答案，转入升级候选")
+                outcomes.append(
+                    _FieldOutcome(field_profile, code="X", certainty=0.0, verdict="escalate")
+                )
                 continue
 
             if one_pass:
@@ -376,7 +378,7 @@ class System1Decider:
             cert = certainty(answer)
             outcomes.append(
                 _FieldOutcome(
-                    field=field,
+                    field=field_profile,
                     code=answer.choice or "X",
                     certainty=cert,
                     verdict=self.policy.verdict(cert),
@@ -387,7 +389,7 @@ class System1Decider:
 
     def _finalize(
         self,
-        outcomes: list["_FieldOutcome"],
+        outcomes: list[_FieldOutcome],
         scene_config: Any,
         scene_code: str,
     ) -> tuple[str, list[DecisionRecord], list[str]]:

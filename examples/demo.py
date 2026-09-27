@@ -1,8 +1,9 @@
 """SignalChain 使用示例 — 演示完整的信号链管线"""
 
 import pandas as pd
-from signalchain.pipeline import SignalChainPipeline
+
 from signalchain.ai_client import MockAIClient
+from signalchain.pipeline import SignalChainPipeline
 
 
 def demo_medical_data():
@@ -45,7 +46,7 @@ def demo_medical_data():
     # 第二次运行（缓存命中）
     print("\n" + "-" * 60)
     print("第二次运行（相同数据，应命中缓存）：")
-    result2, report2 = pipeline.run(df)
+    _result2, report2 = pipeline.run(df)
     print(report2.summary())
 
 

@@ -21,10 +21,10 @@ if sys.platform == "win32":
             stream.reconfigure(encoding="utf-8", errors="replace")
 
 import pandas as pd
-from signalchain.pipeline import SignalChainPipeline
-from signalchain.ai_client import DeepSeekV4Client
-from config import SYSTEM2_API_KEY, SYSTEM2_BASE_URL, SYSTEM2_MODEL
 
+from config import SYSTEM2_API_KEY, SYSTEM2_BASE_URL, SYSTEM2_MODEL
+from signalchain.ai_client import DeepSeekV4Client
+from signalchain.pipeline import SignalChainPipeline
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DIRTY_DIR = os.path.join(ROOT, "data", "dirty")
@@ -198,12 +198,11 @@ def main():
         diff_cols = []
         if not ok:
             for col in df_on.columns:
-                if col in df_off.columns:
-                    if (
-                        df_on[col].astype(str).tolist()
-                        != df_off[col].astype(str).tolist()
-                    ):
-                        diff_cols.append(col)
+                if col in df_off.columns and (
+                    df_on[col].astype(str).tolist()
+                    != df_off[col].astype(str).tolist()
+                ):
+                    diff_cols.append(col)
         rows.append(
             {
                 "用例": name,

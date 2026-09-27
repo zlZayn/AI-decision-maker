@@ -9,7 +9,6 @@ import pytest
 
 from signalchain.system1 import (
     Answer,
-    EvalResponse,
     GatePolicy,
     JevEvaluator,
     MockEvaluator,

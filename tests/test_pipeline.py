@@ -1,10 +1,11 @@
 """Pipeline 集成测试"""
 
-import pandas as pd
 import tempfile
 
-from signalchain.pipeline import SignalChainPipeline
+import pandas as pd
+
 from signalchain.ai_client import MockAIClient
+from signalchain.pipeline import SignalChainPipeline
 
 
 class SequenceMockAI(MockAIClient):
@@ -46,7 +47,7 @@ class TestSignalChainPipeline:
                 "drug_name": ["阿莫西林", "甲硝唑"],
             })
 
-            result, report = pipeline.run(df)
+            result, _report = pipeline.run(df)
 
             # 性别应被标准化
             assert list(result["gender"]) == ["男", "女"]
@@ -99,7 +100,7 @@ class TestSignalChainPipeline:
             "drug_name": ["阿莫西林", "甲硝唑"],
         })
 
-        result, report = SignalChainPipeline.run_local(df, "S1", "IGADN")
+        result, _report = SignalChainPipeline.run_local(df, "S1", "IGADN")
 
         assert list(result["gender"]) == ["男", "女"]
         assert list(result["age"]) == [30, 30]
@@ -116,7 +117,7 @@ class TestSignalChainPipeline:
                 "col2": ["c", "d"],
             })
 
-            result, report = pipeline.run(df)
+            result, _report = pipeline.run(df)
 
             # S0 场景下 I→id 重命名，X 保留原列名
             assert list(result["id"]) == ["a", "b"]
@@ -130,6 +131,6 @@ class TestSignalChainPipeline:
             pipeline = SignalChainPipeline(ai_client=mock_ai, cache_file=f.name)
 
             df = pd.DataFrame()
-            result, report = pipeline.run(df)
+            result, _report = pipeline.run(df)
 
             assert len(result.columns) == 0

@@ -4,19 +4,18 @@ from __future__ import annotations
 
 import pandas as pd
 
+from signalchain.ai_client import MockAIClient
 from signalchain.categorical import (
     CategoricalClassifier,
     ClassificationResult,
+    apply_categorical_type,
     build_categorical_prompt,
     build_ordinal_prompt,
+    extract_unique_values,
     validate_categorical_output,
     validate_ordinal_output,
-    extract_unique_values,
-    apply_categorical_type,
 )
 from signalchain.models import DataProfile, FieldProfile
-from signalchain.ai_client import MockAIClient
-
 
 # ============================================================
 # 辅助工具

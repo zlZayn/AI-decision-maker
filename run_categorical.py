@@ -18,11 +18,14 @@ import time
 
 import pandas as pd
 
-from signalchain.stage0_profile import extract_profile
+from config import SYSTEM2_API_KEY, SYSTEM2_BASE_URL, SYSTEM2_MODEL
 from signalchain.ai_client import DeepSeekV4Client, MockAIClient
 from signalchain.categorical import CategoricalClassifier
-from signalchain.categorical_system1 import System1CategoricalClassifier, System1Classification
-from config import SYSTEM2_API_KEY, SYSTEM2_BASE_URL, SYSTEM2_MODEL
+from signalchain.categorical_system1 import (
+    System1CategoricalClassifier,
+    System1Classification,
+)
+from signalchain.stage0_profile import extract_profile
 
 logging.getLogger("signalchain").setLevel(logging.ERROR)
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -226,7 +229,6 @@ def main():
     # ---- 决策逻辑：根据变量类型选择最佳方法 ----
     for r in results:
         ordinal_set = set(r["ordinal"].keys())
-        nominal_set = set(r["nominal"])
         # 取前两个分类变量（排除 id 等）
         cats = []
         for name in list(r["ordinal"].keys()) + r["nominal"]:
@@ -248,7 +250,7 @@ def main():
             r["decision"] = "无序vs无序 -> Cramer's V"
         else:
             r["method"] = "Kruskal"
-            r["decision"] = f"有序vs无序 -> Kruskal-Wallis"
+            r["decision"] = "有序vs无序 -> Kruskal-Wallis"
 
     # ---- AI 汇总 ----
     usage = client.usage
@@ -258,7 +260,7 @@ def main():
     total_time = sum(r["elapsed"] for r in results)
 
     print(f"\n  {DASH}")
-    print(f"  AI Classification & Method Selection")
+    print("  AI Classification & Method Selection")
     print(f"  {DASH}")
     print(f"  {'file':<14s} {'rows':>4s} {'types':<10s} {'method':<10s} {'status':<7s}  {'result'}")
     print(f"  {'-' * 14} {'-' * 4} {'-' * 10} {'-' * 10} {'-' * 7}  {'-' * 24}")
@@ -271,7 +273,6 @@ def main():
 
         # 类型组合
         ordinal_set = set(r["ordinal"].keys())
-        nominal_set = set(r["nominal"])
         type_labels = []
         for name in list(r["ordinal"].keys()) + r["nominal"]:
             type_labels.append("有序" if name in ordinal_set else "无序")
@@ -309,6 +310,7 @@ def main():
     proc = subprocess.run(
         ["Rscript", R_SCRIPT, INPUT_DIR, OUTPUT_DIR],
         cwd=ROOT,
+        check=False,
         capture_output=True,
         text=True,
         encoding="utf-8",

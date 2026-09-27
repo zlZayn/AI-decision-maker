@@ -22,6 +22,7 @@ system1 = [
 dev = [
     "pytest>=8.0",
     "pytest-cov",
+    "ruff>=0.16.9",
 ]
 
 [tool.setuptools.packages.find]
@@ -30,3 +31,7 @@ exclude = ["data*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+# 不碰 Markdown 里嵌的 Python 片段：文档与笔记正文不属格式化范围
+extend-exclude = ["*.md"]

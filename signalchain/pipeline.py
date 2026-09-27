@@ -6,8 +6,10 @@ import logging
 
 import pandas as pd
 
-from signalchain.models import CacheEntry, DecisionRecord
+from signalchain.ai_client import AIClient, MockAIClient
 from signalchain.cache import SignalCache
+from signalchain.fastpath import System1Decider
+from signalchain.models import CacheEntry, DecisionRecord
 from signalchain.stage0_profile import extract_profile, generate_fingerprint
 from signalchain.stage1_scene import build_scene_prompt, validate_scene_code
 from signalchain.stage2_router import (
@@ -17,9 +19,7 @@ from signalchain.stage2_router import (
 )
 from signalchain.stage3_semantic import validate_field_signal_sequence
 from signalchain.stage4_assemble import assemble_operations
-from signalchain.stage5_execute import execute_pipeline, QualityReport
-from signalchain.ai_client import AIClient, MockAIClient
-from signalchain.fastpath import System1Decider
+from signalchain.stage5_execute import QualityReport, execute_pipeline
 from signalchain.system1 import Evaluator, GatePolicy, System1Error
 
 logger = logging.getLogger(__name__)
