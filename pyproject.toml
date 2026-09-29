@@ -35,3 +35,8 @@ testpaths = ["tests"]
 [tool.ruff]
 # 不碰 Markdown 里嵌的 Python 片段：文档与笔记正文不属格式化范围
 extend-exclude = ["*.md"]
+
+[tool.ruff.lint.isort]
+# config 是本地专属模块（不入库，仓库内只有 config.example.py）：
+# 显式声明，避免 import 分类随文件是否存在在本地与 CI 之间漂移
+known-first-party = ["config"]
