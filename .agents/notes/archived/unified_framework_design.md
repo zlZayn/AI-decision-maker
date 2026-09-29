@@ -1,5 +1,7 @@
 # SignalChain 统一框架设计文档（初步计划，已过期）
 
+状态：已归档（2026-09-21）—— 过期的初步计划；内容已由现行文档取代，仅作历史留存
+
 > 已归档（2026-09-21）：原在 docs/ 下，不属架构文档档位。
 > 内容已由 [../../../docs/ARCHITECTURE.md](../../../docs/ARCHITECTURE.md) 与
 > [../../../signalchain/README.md](../../../signalchain/README.md) 取代，此处仅作历史留存。
