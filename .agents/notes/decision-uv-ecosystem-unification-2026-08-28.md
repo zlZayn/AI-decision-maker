@@ -1,6 +1,6 @@
 # 决策：uv 生态统一（2026-08-28）
 
-已实施：dev 依赖组、锁文件源、Python 版本三处统一
+状态：生效
 
 ## 问题
 - dev 依赖（pytest 等）原在 [project.optional-dependencies]，uv run 默认不装 extra，pytest 不在项目环境

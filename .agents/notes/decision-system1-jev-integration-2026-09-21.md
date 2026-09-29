@@ -1,6 +1,6 @@
 # 决策：系统一（Jev）接入（2026-09-21）
 
-已实施：清洗链路与分类链路的闭集判断改由 TypeSafe System One（Jev）承担，系统二负责升级裁决
+状态：生效
 
 ## 问题
 - 五处判断用系统二模拟系统一：场景码（[stage1_scene.py](../../signalchain/stage1_scene.py)）、字段码定长字符串（[stage3_semantic.py](../../signalchain/stage3_semantic.py)）、分类变量筛选与有序性判断（[categorical.py](../../signalchain/categorical.py)）
