@@ -94,7 +94,7 @@ python run_categorical.py --no-cache
 
 ## 工作流程
 
-数据从"脏 CSV"到"干净 CSV"，经过以下步骤：
+数据从"脏 CSV"到"干净 CSV"，经过以下步骤（机制细节见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) 的「完整数据流」）：
 
 | 步骤 | 谁做的 | 做什么 | 输入 | 输出 |
 | --- | --- | --- | --- | --- |
@@ -235,6 +235,7 @@ clean, report = SignalChainPipeline.run_local(
 首次清洗会调用 AI 并缓存结果。相同数据结构的文件再次处理时，直接从缓存读取，跳过 AI 调用。
 
 缓存文件：`signal_cache.json`，内部按**决策引擎分区**（系统一与系统二各一份）。
+机制细节（分区结构、指纹算法、失效策略）见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) 的「缓存机制」。
 两个模式交替跑时互不覆盖，各自的缓存都留着。
 
 **缓存失效条件**：
@@ -275,21 +276,3 @@ uv run python run_clean.py medical --system1 --escalate # 串联：系统一拿�
 ## 开发者文档
 
 维护索引、命令速查、待办与活跃坑，以及全部文档地图 → [AGENTS.md](AGENTS.md)
-
----
-
-## 本地提交钩子（pre-commit）
-
-提交前自动修复格式与 lint（只跑秒级检查；测试与类型检查留给 CI）。
-前提：需要 uv 与 pre-commit（pre-commit 用 `uv tool install pre-commit` 装到 `~/.local/bin`）。
-
-```bash
-uv tool install pre-commit
-pre-commit install
-```
-
-> 装完需重开终端（或重载 shell 配置），PATH 才生效。
-
-- 手动全量跑：`pre-commit run --all-files`
-- 跳过单次：`git commit --no-verify`
-- 定义：[.pre-commit-config.yaml](.pre-commit-config.yaml)（CI 与钩子跑的是同一份 ruff 配置）

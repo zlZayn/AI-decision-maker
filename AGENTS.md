@@ -13,7 +13,7 @@
 
 ## 常用命令（可执行规范）
 
-- 本地钩子：`pre-commit install`（每个 clone 一次；本体 `uv tool install pre-commit`）——提交前自动 `ruff check --fix` + `ruff format`；CI 只读跑同一组检查
+- 本地钩子：`pre-commit install`（每个 clone 一次；本体 `uv tool install pre-commit`）——提交前自动 `ruff check --fix` + `ruff format`；CI 只读跑同一组检查；全量跑 `pre-commit run --all-files`；临时跳过 `git commit --no-verify`；定义见 [.pre-commit-config.yaml](.pre-commit-config.yaml)
 - `uv run pytest` — 单元测试
 - `uv run python run_clean.py [名称] [--no-cache]` — 清洗 data/dirty/ → data/clean/（纯系统二）
 - `uv run python run_clean.py [名称] --system1` — 纯系统一（Jev），不需要 DeepSeek Key
