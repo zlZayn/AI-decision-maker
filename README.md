@@ -1,5 +1,7 @@
 # SignalChain
 
+[![CI](https://github.com/zlZayn/AI-decision-maker/actions/workflows/ci.yml/badge.svg)](https://github.com/zlZayn/AI-decision-maker/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 AI 驱动的数据分析框架，包含两条链路：数据清洗（认字段）和分类变量分析（认分类变量）。
 
 **核心思路**：AI 负责决策，程序负责执行。
@@ -276,3 +278,15 @@ uv run python run_clean.py medical --system1 --escalate # 串联：系统一拿�
 ## 开发者文档
 
 维护索引、命令速查、待办与活跃坑，以及全部文档地图 → [AGENTS.md](AGENTS.md)
+
+---
+
+## 许可
+
+- 本仓基于 [MIT 许可](LICENSE) 发布。
+
+## 贡献
+
+- 本仓为个人项目；问题与建议请走 [Issues](https://github.com/zlZayn/AI-decision-maker/issues)。
+
+维护者文档地图 → 见 [AGENTS.md](AGENTS.md)。
