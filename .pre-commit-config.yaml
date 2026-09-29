@@ -1,0 +1,32 @@
+# 本地提交钩子：只跑「秒级」检查，能自动修的直接修；修不掉的才拦下提交。
+#
+# 设计取舍（沿用本机项目群既有约定）：
+#   - 钩子只做 lint + 格式，测试与类型检查留给 CI —— 钩子一慢，就会有人用
+#     --no-verify 绕过，等于没有钩子。
+#   - 自动修复（--fix / format）会让文件在工作树里变化，**需要重新 git add**。
+#
+# 启用（每个 clone 执行一次；pre-commit 本体用 `uv tool install pre-commit` 装到 ~/.local/bin）：
+#   pre-commit install
+# 全量跑一次：
+#   pre-commit run --all-files
+# 临时跳过：
+#   git commit --no-verify
+#
+# 边界：本文件不改 core.hooksPath，也不覆盖 .git/hooks 下已有的占位钩子；
+# pre-commit 只会写入 .git/hooks/pre-commit（本仓此前不存在该文件）。
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check --fix (uv)
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+        require_serial: true
+
+      - id: ruff-format
+        name: ruff format (uv)
+        entry: uv run ruff format
+        language: system
+        types: [python]
+        require_serial: true

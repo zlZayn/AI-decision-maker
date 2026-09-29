@@ -12,6 +12,8 @@
 - 双件分离：AGENTS.md 只写规则，README.md 只写是什么/怎么改
 
 ## 常用命令（可执行规范）
+
+- 本地钩子：`pre-commit install`（每个 clone 一次；本体 `uv tool install pre-commit`）——提交前自动 `ruff check --fix` + `ruff format`；CI 只读跑同一组检查
 - `uv run pytest` — 单元测试
 - `uv run python run_clean.py [名称] [--no-cache]` — 清洗 data/dirty/ → data/clean/（纯系统二）
 - `uv run python run_clean.py [名称] --system1` — 纯系统一（Jev），不需要 DeepSeek Key

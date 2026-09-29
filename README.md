@@ -275,3 +275,21 @@ uv run python run_clean.py medical --system1 --escalate # 串联：系统一拿�
 ## 开发者文档
 
 维护索引、命令速查、待办与活跃坑，以及全部文档地图 → [AGENTS.md](AGENTS.md)
+
+---
+
+## 本地提交钩子（pre-commit）
+
+提交前自动修复格式与 lint（只跑秒级检查；测试与类型检查留给 CI）。
+前提：需要 uv 与 pre-commit（pre-commit 用 `uv tool install pre-commit` 装到 `~/.local/bin`）。
+
+```bash
+uv tool install pre-commit
+pre-commit install
+```
+
+> 装完需重开终端（或重载 shell 配置），PATH 才生效。
+
+- 手动全量跑：`pre-commit run --all-files`
+- 跳过单次：`git commit --no-verify`
+- 定义：[.pre-commit-config.yaml](.pre-commit-config.yaml)（CI 与钩子跑的是同一份 ruff 配置）
